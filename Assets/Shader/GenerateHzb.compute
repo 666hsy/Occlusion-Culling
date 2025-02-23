@@ -1,0 +1,24 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#include "UnityCG.cginc"
+
+RWTexture2D<float> SourceTex;   //低Level深度图
+RWTexture2D<float> DestTex;     //高Level深度图
+float2 DepthRTSize;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    //这里会报warning,因为用了float和int比较，应该不影响
+    if(id.x > DepthRTSize.x || id.y > DepthRTSize.y) return;
+    uint2 ori_id = id * 2;
+    float4 value = float4(SourceTex[ori_id], SourceTex[ori_id + uint2(1,0)], SourceTex[ori_id + uint2(1,1)], SourceTex[ori_id + uint2(0,1)]);
+    #ifdef UNITY_REVERSED_Z
+        value.xy = min(value.xy, value.zw);
+        DestTex[id.xy] = min(value.x, value.y);
+    #else
+        value.xy = max(value.xy, value.zw);
+        DestTex[id.xy] = max(value.x, value.y);
+    #endif
+}
