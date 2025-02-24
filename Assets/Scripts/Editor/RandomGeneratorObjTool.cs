@@ -1,0 +1,51 @@
+using UnityEngine;
+using UnityEditor;
+
+public class RandomGeneratorObjTool
+{
+    // 在 Unity 菜单中添加入口
+    [MenuItem("Tools/生成工具/随机创建3000个球")]
+    public static void RandomGenerateSphere()
+    {
+        GameObject SphereParent = GameObject.Find("Instance/Sphere");
+        int sphereCount = 3000;
+        Vector2 xRange = new Vector2(-250f, 250f);
+        Vector2 yRange = new Vector2(0f, 50f);
+        Vector2 zRange = new Vector2(-250f, 250f);
+        Vector2 scaleRange = new Vector2(0.5f, 3f);
+        int group = Undo.GetCurrentGroup();
+        for (int i = 0; i < sphereCount; i++)
+        {
+            // 随机生成位置
+            Vector3 pos = new Vector3(
+                Random.Range(xRange.x, xRange.y),
+                Random.Range(yRange.x, yRange.y),
+                Random.Range(zRange.x, zRange.y)
+            );
+
+            // 随机生成均匀缩放
+            float scale = Random.Range(scaleRange.x, scaleRange.y);
+
+            // 创建球体
+            GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.transform.position = pos;
+            sphere.transform.localScale = new Vector3(scale, scale, scale);
+            sphere.transform.parent = SphereParent.transform;
+
+        }
+        Debug.Log($"生成了 {sphereCount} 个球体");
+    }
+
+    [MenuItem("Tools/生成工具/删除所有球")]
+    public static void DeleteAllSphere()
+    {
+        GameObject SphereParent = GameObject.Find("Instance/Sphere");
+        if(SphereParent!=null)
+        {
+            foreach (Transform child in SphereParent.transform)
+                GameObject.DestroyImmediate(child.gameObject);
+
+            Debug.Log("删除了所有球体");
+        }
+    }
+}
