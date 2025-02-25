@@ -1,5 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
+using log4net.Util;
 
 public class RandomGeneratorObjTool
 {
@@ -7,10 +8,10 @@ public class RandomGeneratorObjTool
     [MenuItem("Tools/生成工具/随机创建3000个球")]
     public static void RandomGenerateSphere()
     {
-        GameObject SphereParent = GameObject.Find("Instance/Sphere");
+        GameObject SphereParent = GameObject.Find("Instance/SphereParent");
         int sphereCount = 3000;
         Vector2 xRange = new Vector2(-250f, 250f);
-        Vector2 yRange = new Vector2(0f, 50f);
+        Vector2 yRange = new Vector2(0f, 30f);
         Vector2 zRange = new Vector2(-250f, 250f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
         int group = Undo.GetCurrentGroup();
@@ -39,13 +40,15 @@ public class RandomGeneratorObjTool
     [MenuItem("Tools/生成工具/删除所有球")]
     public static void DeleteAllSphere()
     {
-        GameObject SphereParent = GameObject.Find("Instance/Sphere");
-        if(SphereParent!=null)
+        GameObject SphereParent = GameObject.Find("Instance/SphereParent");
+        Debug.Log(SphereParent.transform.childCount);
+        for (int i = 0; i < SphereParent.transform.childCount; i++)
         {
-            foreach (Transform child in SphereParent.transform)
-                GameObject.DestroyImmediate(child.gameObject);
-
-            Debug.Log("删除了所有球体");
+            Debug.Log(i);
+            var transform = SphereParent.transform.GetChild(i);
+            GameObject.DestroyImmediate(transform.gameObject);
         }
+
     }
+
 }
