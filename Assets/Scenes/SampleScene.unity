@@ -623,6 +623,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3802c5669918cee4d8e734f77925b209, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  ComputeShader: {fileID: 7200000, guid: 827217f5766a6e34f87a32ac56ce13c2, type: 3}
   Instances:
   - prefab: {fileID: 7545205875749029875, guid: bfc3f26df8bded041b4fdf969670acaa, type: 3}
     count: 3000

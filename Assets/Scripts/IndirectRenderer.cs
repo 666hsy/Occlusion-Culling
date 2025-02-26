@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-
+using UnityEngine.Rendering;
 public class IndirectRenderer : MonoBehaviour
 {
     [System.Serializable]
@@ -14,11 +14,15 @@ public class IndirectRenderer : MonoBehaviour
         public Vector3[] scales;
     }
 
+    public ComputeShader ComputeShader;
     public IndirectInstanceData[] Instances;    //需要GPU Instancing的物体
 
     private int numberOfInstanceTypes;  //实例的种类的数量
     private int numberOfInstances = 0;      //实例的数量
     private ComputeBuffer indirectArgs;
+    private ComputeBuffer culledResultBuffer;   //保存剔除后的结果
+    private int maxInstanceSize = 3000;  //剔除后的最大绘制的实例数量
+    private CommandBuffer commandBuffer;
     private uint[] args;
 
     // Start is called before the first frame update
@@ -34,18 +38,53 @@ public class IndirectRenderer : MonoBehaviour
         for (int i = 0; i < numberOfInstanceTypes; i++)
             numberOfInstances += Instances[i].count;
         //一共多少个元素，每个元素几个字节，类型
-        indirectArgs = new ComputeBuffer(numberOfInstances, 4, ComputeBufferType.IndirectArguments);
+        indirectArgs = new ComputeBuffer(5, 4, ComputeBufferType.IndirectArguments);
+
+        var meshFilter = Instances[0].prefab.GetComponent<MeshFilter>();
+        var meshRenderer = Instances[0].prefab.GetComponent<MeshRenderer>();
+        var mesh = meshFilter.sharedMesh;
+        indirectArgs.SetData(new uint[] { mesh.GetIndexCount(0), 3000, 0, 0, 0 });
+        commandBuffer = new CommandBuffer();
+        culledResultBuffer = new ComputeBuffer(maxInstanceSize, 24, ComputeBufferType.Append);
+        InitKernels();
+    }
+
+    private void InitKernels()
+    {
+        int kernel = ComputeShader.FindKernel("Culling");
+        ComputeShader.SetBuffer(kernel, ShaderConstants.CulledResultBuffer, culledResultBuffer);
+    }
+
+    private class ShaderConstants
+    {
+        public static readonly int CulledResultBuffer = Shader.PropertyToID("CulledResultBuffer");
     }
 
     // Update is called once per frame
     void Update()
     {
-        for(int i=0; i<numberOfInstanceTypes; i++)
+        Dispatch();
+        for (int i=0; i<numberOfInstanceTypes; i++)
         {
             var meshFilter = Instances[i].prefab.GetComponent<MeshFilter>();
             var meshRenderer = Instances[i].prefab.GetComponent<MeshRenderer>();
-            Graphics.DrawMeshInstancedIndirect(meshFilter.sharedMesh, 0, meshRenderer.sharedMaterial, new Bounds(Vector3.zero, new Vector3(500, 100, 500)), indirectArgs);
+            var mesh = meshFilter.sharedMesh;
+            Graphics.DrawMeshInstancedIndirect(mesh, 0, meshRenderer.sharedMaterial, new Bounds(Vector3.zero, new Vector3(500, 100, 500)), indirectArgs);
         }
+    }
+    private void Dispatch()
+    {
+        ClearBufferCounter();
+        commandBuffer.CopyCounterValue(culledResultBuffer, indirectArgs, 4);
+    }
+    private void ClearBufferCounter()
+    {
+        culledResultBuffer.SetCounterValue(0);
+    }
+
+    private void OnDestroy()
+    {
+        indirectArgs.Dispose();
     }
 
     [ContextMenu("生成集Instance数据")]
