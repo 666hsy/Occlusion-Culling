@@ -18,7 +18,7 @@
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "Common.hlsl"
-            StructuredBuffer<InstanceStruct> InstanceDataList;
+            StructuredBuffer<float4x4> InstanceDataList;    //剔除的结果
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -41,9 +41,11 @@
                 v2f o;
                 float4 inVertex = v.vertex;
                 float2 uv = v.uv;
-                InstanceStruct instance=InstanceDataList[v.instanceID];
-                
-                o.vertex = TransformObjectToHClip(inVertex.xyz);
+                //绘制实例化物体
+                float4x4 instanceMatrix = InstanceDataList[v.instanceID];
+                // inVertex = mul(instanceMatrix, inVertex);
+                // o.vertex = TransformWorldToHClip(inVertex.xyz);
+                o.vertex=TransformObjectToHClip(inVertex.xyz);
                 o.uv = uv;
                 
                 Light light = GetMainLight();

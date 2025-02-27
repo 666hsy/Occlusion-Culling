@@ -13,17 +13,26 @@ public class IndirectRenderer : MonoBehaviour
         public Vector3[] rotations;
         public Vector3[] scales;
     }
-
+    
+    private class ShaderConstants
+    {
+        public static readonly int CulledResultBuffer = Shader.PropertyToID("CulledResultBuffer");
+        public static readonly int InputInstanceDataBuffer = Shader.PropertyToID("InputInstanceBuffer");
+        public static readonly int InstanceDataList = Shader.PropertyToID("InstanceDataList");
+    }
     public ComputeShader ComputeShader;
     public IndirectInstanceData[] Instances;    //需要GPU Instancing的物体
 
     private int numberOfInstanceTypes;  //实例的种类的数量
-    private int numberOfInstances = 0;      //实例的数量
+    private int numberOfInstances = 0;      //实例的总数量
     private ComputeBuffer indirectArgs;
     private ComputeBuffer culledResultBuffer;   //保存剔除后的结果
+    private ComputeBuffer inpuInstanceDataBuffer;   //保存实例数据
+    
     private int maxInstanceSize = 3000;  //剔除后的最大绘制的实例数量
     private CommandBuffer commandBuffer;
     private uint[] args;
+    private int kernel;
 
     // Start is called before the first frame update
     void Start()
@@ -47,39 +56,65 @@ public class IndirectRenderer : MonoBehaviour
         commandBuffer = new CommandBuffer();
         culledResultBuffer = new ComputeBuffer(maxInstanceSize, 24, ComputeBufferType.Append);
         InitKernels();
+        InitInputBuffer();
+    }
+    
+    private void InitInputBuffer()
+    {
+        inpuInstanceDataBuffer = new ComputeBuffer(numberOfInstances, sizeof(float) * 16);
+        ComputeShader.SetBuffer(kernel, ShaderConstants.InputInstanceDataBuffer, inpuInstanceDataBuffer);
+        
+        int cnt = 0;
+        Matrix4x4[] instanceMatrix= new Matrix4x4[numberOfInstances];
+        for (int i = 0; i < numberOfInstanceTypes; i++)
+        {
+            var instanceData = Instances[i];
+            for(int j=0; j<instanceData.count; j++)
+            {
+                instanceMatrix[cnt++] = Matrix4x4.TRS(instanceData.positions[j],
+                    Quaternion.Euler(instanceData.rotations[j]), instanceData.scales[j]);
+            }
+        }
+        inpuInstanceDataBuffer.SetData(instanceMatrix);
     }
 
     private void InitKernels()
     {
-        int kernel = ComputeShader.FindKernel("Culling");
+        kernel = ComputeShader.FindKernel("Culling");
         ComputeShader.SetBuffer(kernel, ShaderConstants.CulledResultBuffer, culledResultBuffer);
     }
-
-    private class ShaderConstants
-    {
-        public static readonly int CulledResultBuffer = Shader.PropertyToID("CulledResultBuffer");
-    }
-
+    
     // Update is called once per frame
     void Update()
     {
         Dispatch();
+        
         for (int i=0; i<numberOfInstanceTypes; i++)
         {
             var meshFilter = Instances[i].prefab.GetComponent<MeshFilter>();
             var meshRenderer = Instances[i].prefab.GetComponent<MeshRenderer>();
             var mesh = meshFilter.sharedMesh;
+            meshRenderer.sharedMaterial.SetBuffer(ShaderConstants.InstanceDataList, culledResultBuffer);
             Graphics.DrawMeshInstancedIndirect(mesh, 0, meshRenderer.sharedMaterial, new Bounds(Vector3.zero, new Vector3(500, 100, 500)), indirectArgs);
         }
     }
     private void Dispatch()
     {
         ClearBufferCounter();
-        commandBuffer.CopyCounterValue(culledResultBuffer, indirectArgs, 4);
+        commandBuffer.DispatchCompute(ComputeShader, kernel, 1 + numberOfInstances / 64, 1, 1);
+        commandBuffer.CopyCounterValue(culledResultBuffer, indirectArgs, 4);    //获得结果的实例数量
+        Graphics.ExecuteCommandBuffer(commandBuffer);
+        // LogInstanceArgs();
+    }
+    private void LogInstanceArgs(){
+        var data = new uint[5];
+        indirectArgs.GetData(data);
+        Debug.Log(data[1]);
     }
     private void ClearBufferCounter()
     {
-        culledResultBuffer.SetCounterValue(0);
+
+        commandBuffer.SetBufferCounterValue(culledResultBuffer, 0);
     }
 
     private void OnDestroy()
