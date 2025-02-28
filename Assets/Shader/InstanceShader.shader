@@ -22,16 +22,15 @@
             struct appdata
             {
                 float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-                float norm: NORMAL;
-                uint instanceID : SV_InstanceID;
+                float3 normal : NORMAL;
+                uint instanceID : SV_InstanceID;  // 关键：通过 SV_InstanceID 获取实例索引
             };
 
             struct v2f
             {
-                float2 uv : TEXCOORD0;
-                float4 vertex : SV_POSITION;
-                half3 color : TEXCOORD1;
+                float4 pos : SV_POSITION;
+                float3 normal : TEXCOORD0;
+                float3 worldPos : TEXCOORD1;
             };
 
             sampler2D _MainTex;
@@ -39,25 +38,22 @@
             v2f vert (appdata v)
             {
                 v2f o;
-                float4 inVertex = v.vertex;
-                float2 uv = v.uv;
-                //绘制实例化物体
                 float4x4 instanceMatrix = InstanceDataList[v.instanceID];
-                // inVertex = mul(instanceMatrix, inVertex);
-                // o.vertex = TransformWorldToHClip(inVertex.xyz);
-                o.vertex=TransformObjectToHClip(inVertex.xyz);
-                o.uv = uv;
-                
-                Light light = GetMainLight();
-                o.color = max(0.05,dot(light.direction,v.norm));
+                float4 worldPos = mul(instanceMatrix, v.vertex);
+                o.pos = mul(UNITY_MATRIX_VP, worldPos);
+                o.worldPos = worldPos.xyz;
+                float3x3 normalMatrix = transpose((float3x3)instanceMatrix);
+                o.normal = mul(normalMatrix, v.normal);
                 return o;
             }
 
             half4 frag (v2f i) : SV_Target
             {
-                half4 col = tex2D(_MainTex, i.uv);
-                col.rgb *= i.color;
-                return col;
+                float3 N = normalize(i.normal);
+                float3 L = _MainLightPosition.xyz;
+                float3 diffuse = saturate(dot(N, L)) * _MainLightColor.rgb;
+                
+                return half4(diffuse, 1.0);
             }
 
             ENDHLSL
