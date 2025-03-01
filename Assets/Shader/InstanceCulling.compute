@@ -1,0 +1,14 @@
+
+#pragma kernel Culling
+
+#include "Common.hlsl"
+
+AppendStructuredBuffer<float4x4> CulledResultBuffer;
+StructuredBuffer<float4x4> InputInstanceBuffer;   //原始数据
+[numthreads(64,1,1)]    //每个线程组64个线程,每个实例一个线程
+void Culling (uint3 id : SV_DispatchThreadID,uint3 groupId:SV_GroupID,uint3 groupThreadId:SV_GroupThreadID)
+{
+    if (id.x>=1000) return; //只绘制前1000个实例
+    float4x4 instanceMatrix = InputInstanceBuffer[id.x];
+    CulledResultBuffer.Append(instanceMatrix);
+}
