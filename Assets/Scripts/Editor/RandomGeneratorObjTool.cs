@@ -5,11 +5,11 @@ using log4net.Util;
 public class RandomGeneratorObjTool
 {
     // 在 Unity 菜单中添加入口
-    [MenuItem("Tools/生成工具/随机创建3000个球")]
+    [MenuItem("Tools/生成工具/随机创建1000个球")]
     public static void RandomGenerateSphere()
     {
-        GameObject SphereParent = GameObject.Find("Instance/SphereParent");
-        int sphereCount = 3000;
+        GameObject SphereParent = GameObject.Find("SphereParent");
+        int sphereCount = 1000;
         Vector2 xRange = new Vector2(-250f, 250f);
         Vector2 yRange = new Vector2(0f, 30f);
         Vector2 zRange = new Vector2(-250f, 250f);

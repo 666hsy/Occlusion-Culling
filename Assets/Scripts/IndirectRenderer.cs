@@ -113,7 +113,8 @@ public class IndirectRenderer : MonoBehaviour
     }
     private void ClearBufferCounter()
     {
-
+        commandBuffer.Clear();
+        commandBuffer.SetBufferCounterValue(inpuInstanceDataBuffer, (uint)numberOfInstances);
         commandBuffer.SetBufferCounterValue(culledResultBuffer, 0);
     }
 
