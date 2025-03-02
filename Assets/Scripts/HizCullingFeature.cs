@@ -16,8 +16,7 @@ public class HizCullingFeature : ScriptableRendererFeature
         private Material mat;
         private int[] depthMipID;
         RTHandle _GrabDepthTex;
-        //private RenderTexture depthRT;
-        //RTHandle _GrabDepthTex; 
+
         public HizCullingPass(Material hizMaterial)
         {
             mat = hizMaterial;
@@ -37,20 +36,12 @@ public class HizCullingFeature : ScriptableRendererFeature
                 HizCullingPass.hizInfos[i].ComputePackedMipChainInfo(new Vector2Int(Camera.main.pixelWidth, Camera.main.pixelHeight));
             }
         }
-
-        // Here you can implement the rendering logic.
-        // Use <c>ScriptableRenderContext</c> to issue drawing commands or execute command buffers
-        // https://docs.unity3d.com/ScriptReference/Rendering.ScriptableRenderContext.html
-        // You don't have to call ScriptableRenderContext.submit, the render pipeline will call it at specific points in the pipeline.
+        
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
             GPUCulling(context, ref renderingData);
         }
 
-        // Cleanup any allocated resources that were created during the execution of this render pass.
-        public override void OnCameraCleanup(CommandBuffer cmd)
-        {
-        }
 
         public static HizInfo GetHizInfo()
         {
@@ -72,7 +63,6 @@ public class HizCullingFeature : ScriptableRendererFeature
             var mipInfo = hizInfos[hizIndex];
             var hizTexture = mipInfo.hizResult;
             CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
-            //cmd.SetGlobalTexture(_InputDepth, new RenderTargetIdentifier("_CameraDepthAttachment"));
             cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
             cmd.BeginSample("DownSampleDepth");
 
@@ -84,12 +74,10 @@ public class HizCullingFeature : ScriptableRendererFeature
                 if (i == 0)
                 {
                     inputMipSize = mipInfo.mip0Size;
-                    //Shader.EnableKeyword("CameraDepth_1");
                 }
                 else
                 {
                     inputMipSize = mipInfo.mipLevelSizes[i - 1];
-                    //Shader.DisableKeyword("CameraDepth_1");
                 }
                 int id = depthMipID[i];
                 var texID = new RenderTargetIdentifier(id);

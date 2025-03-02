@@ -26,7 +26,7 @@ Shader "Custom/HizShader"
             struct Varyings
             {
                 float2 uv                      : TEXCOORD0;
-                float4 positionCS               : SV_POSITION;
+                float4 positionCS              : SV_POSITION;
             };
 
             Varyings Vertex(Attributes input)
