@@ -10,6 +10,7 @@ public class MgrHiz
     private Matrix4x4 lastVp;       //存储当前帧的VP矩阵，供下一帧进行重投影
     private string generateDepthMipTag = "GenerateDepthMip";
     private RenderTexture hzbDepthRT; //深度图RT
+    private Material genDepthRTMat;   //生成深度图的材质
     
     public ComputeShader GenerateMipmapCS;     //生成Mip的CS
     
@@ -36,10 +37,9 @@ public class MgrHiz
     {
         int resizeX = Mathf.IsPowerOfTwo(width) ? width : Mathf.NextPowerOfTwo(width); 
         int resizeY = Mathf.IsPowerOfTwo(height) ? height : Mathf.NextPowerOfTwo(height);
-        
-        hzbDepthRT = new RenderTexture(resizeX, resizeY, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+
+        hzbDepthRT = new RenderTexture(resizeX, resizeY, 0, RenderTextureFormat.RHalf);
         hzbDepthRT.name = "HzbDepthRT";
-        hzbDepthRT.enableRandomWrite = true;
         hzbDepthRT.useMipMap = true;
         hzbDepthRT.autoGenerateMips = false;
         hzbDepthRT.enableRandomWrite = true;
@@ -54,13 +54,15 @@ public class MgrHiz
             CreateHzbRT(renderingData.cameraData.camera.pixelWidth, renderingData.cameraData.camera.pixelHeight);
         if (GenerateMipmapCS == null)
             GenerateMipmapCS = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Shader/GenerateHzb.compute");
+        if (genDepthRTMat == null)
+            genDepthRTMat = new Material(Shader.Find("Custom/GenerateDepthRT"));
     }
 
     /// <summary>
     /// 生成深度图的Mip，每帧调用
     /// </summary>
     /// <param name="renderingData"></param>
-    public void GenerateDepthMip(ref RenderingData renderingData)
+    public void GenerateDepthMip(ScriptableRenderContext context,ref RenderingData renderingData)
     {
         // scene view下不生成深度图
         if (renderingData.cameraData.camera.name == "SceneCamera" || renderingData.cameraData.camera.name == "Preview Camera")
@@ -68,9 +70,11 @@ public class MgrHiz
         
         var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, true);
         lastVp = proj * renderingData.cameraData.camera.worldToCameraMatrix;
+        EnsureResourceReady(renderingData);
         
         CommandBuffer cmd = CommandBufferPool.Get(generateDepthMipTag);
-        EnsureResourceReady(renderingData);
+        cmd.Blit(Texture2D.blackTexture, hzbDepthRT,genDepthRTMat);
+        
         int mipLevel = 0, w = hzbDepthRT.width, h = hzbDepthRT.height;
         do
         {
@@ -83,5 +87,8 @@ public class MgrHiz
             
             cmd.DispatchCompute(GenerateMipmapCS, 0, Mathf.Max(1, w / 8), Mathf.Max(1, h / 8), 1);
         } while (w > 1 || h > 1);
+        
+        context.ExecuteCommandBuffer(cmd);
+        CommandBufferPool.Release(cmd);
     }
 }
