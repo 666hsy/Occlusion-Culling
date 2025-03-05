@@ -1,0 +1,21 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel GPUCulling
+
+#include "Common.hlsl"
+
+#pragma enable_d3d11_debug_symbols
+uint MaxCount;
+
+RWStructuredBuffer<uint> CullResult;
+RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
+
+
+[numthreads(64,1,1)]
+void GPUCulling (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= MaxCount) return;
+    if (id.x>=20)
+        CullResult[id.x] = 0;   //0为不可见
+    else
+        CullResult[id.x]=1;
+}

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Unity.Collections;
 using UnityEngine;
 
 public class HizInit : MonoBehaviour
@@ -11,7 +12,7 @@ public class HizInit : MonoBehaviour
     
     private MeshRenderer[] renderers;
 
-    private bool[] staticCullResults;
+    private int[] staticCullResults;
     private ComputeBuffer staticMeshBuffer;
     
     public int cullCount;
@@ -30,10 +31,12 @@ public class HizInit : MonoBehaviour
                 staticMeshRenders.Add(meshRenderer);
         }
         
-        staticCullResults = new bool[staticMeshRenders.Count];
+        staticCullResults = new int[staticMeshRenders.Count];
         staticMeshBounds = new BoundStruct[staticMeshRenders.Count];
         int texSize = HizCullingFeature.HizCullingPass.cullTextureSize;
         InitStaticAABB();
+
+        MgrHiz.Instance.cullResultBackArray = new NativeArray<int>(staticMeshRenders.Count, Allocator.Persistent);
     }
 
     private void InitStaticAABB()
@@ -52,16 +55,35 @@ public class HizInit : MonoBehaviour
                 };
             }
         }
-        staticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, 24);
+
+        MgrHiz.Instance.CullingResultBuffer = new ComputeBuffer(staticMeshRenders.Count, 4);
+        MgrHiz.Instance.CullingResultBuffer.SetData(staticCullResults);
         
-        staticMeshBuffer.SetData(staticMeshBounds);
+        MgrHiz.Instance.StaticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, 24);
+        MgrHiz.Instance.StaticMeshBuffer.SetData(staticMeshBounds);
     }
 
     // 读取剔除结果
     private void LateUpdate()
     {
-        // HizCullingFeature.HizCullingPass.objectCenterTex = centerTex;
-        // HizCullingFeature.HizCullingPass.objectSizeTex = sizeTex;
+        if (MgrHiz.Instance.readBackSuccess)
+        {
+            for (int i = 0; i < staticMeshRenders.Count; i++)
+            {
+                if(MgrHiz.Instance.cullResultBackArray[i]<=0)
+                {
+                    staticMeshRenders[i].gameObject.SetActive(false);
+                }
+                else
+                {
+                    staticMeshRenders[i].gameObject.SetActive(true);
+                }
+            }
+        }
+        else
+        {
+            
+        }
         var mipinfo = HizCullingFeature.HizCullingPass.GetHizInfo();
 
         cullCount = 0;
@@ -91,17 +113,6 @@ public class HizInit : MonoBehaviour
                         cullCount++;
                     }
                     
-                    // if (cullResults[i] != needCull)
-                    // {
-                    //     HasChanged = true;
-                    //     if (!needCull)
-                    //         staticMeshRenders[i].gameObject.SetActive((true));
-                    //     else
-                    //     {
-                    //         staticMeshRenders[i].gameObject.SetActive((false));
-                    //     }
-                    //     cullResults[i] = needCull;
-                    // }
                 }
             }
 
