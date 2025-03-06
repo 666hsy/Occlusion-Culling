@@ -9,13 +9,55 @@ uint MaxCount;
 RWStructuredBuffer<uint> CullResult;
 RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
 
+uniform float4 CameraFrustumPlanes[6];  //视锥体的6个面
 
+//测试是否在平面的外侧
+bool IsOutSidePlane(float4 plane, float3 position)
+{
+    return dot(plane.xyz, position) + plane.w < 0;
+}
+
+bool IsAABBOutSidePlane(float4 plane, float3 boundsMin, float3 boundsMax)
+{
+    return IsOutSidePlane(plane, boundsMin) &&
+    IsOutSidePlane(plane, boundsMax) &&
+    IsOutSidePlane(plane, float3(boundsMin.x, boundsMin.y, boundsMax.z)) &&
+    IsOutSidePlane(plane, float3(boundsMin.x, boundsMax.y, boundsMin.z)) &&
+    IsOutSidePlane(plane, float3(boundsMin.x, boundsMax.y, boundsMax.z)) &&
+    IsOutSidePlane(plane, float3(boundsMax.x, boundsMin.y, boundsMax.z)) &&
+    IsOutSidePlane(plane, float3(boundsMax.x, boundsMax.y, boundsMin.z)) &&
+    IsOutSidePlane(plane, float3(boundsMax.x, boundsMin.y, boundsMin.z));
+}
+
+
+bool IsBoundsOutSidePlane(float4 plane, BoundStruct bounds)
+{
+    float3 minPos = bounds.center - bounds.size / 2;
+    float3 maxPos = bounds.center + bounds.size / 2;
+    return IsAABBOutSidePlane(plane, minPos, maxPos);
+}
+
+
+bool FrustumCull(float4 planes[6], BoundStruct bounds)
+{
+    return IsBoundsOutSidePlane(planes[0], bounds) ||
+    IsBoundsOutSidePlane(planes[1], bounds) ||
+    IsBoundsOutSidePlane(planes[2], bounds) ||
+    IsBoundsOutSidePlane(planes[3], bounds) ||
+    IsBoundsOutSidePlane(planes[4], bounds) ||
+    IsBoundsOutSidePlane(planes[5], bounds);
+}
+
+bool HZBCulling(BoundStruct bounds)
+{
+    return false;
+}
 [numthreads(64,1,1)]
 void GPUCulling (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= MaxCount) return;
-    if (id.x>=20)
-        CullResult[id.x] = 0;   //0为不可见
+    if (FrustumCull(CameraFrustumPlanes, StaticBoundBuffer[id.x]) || HZBCulling(StaticBoundBuffer[id.x]))
+        CullResult[id.x] = 0; //0为不可见
     else
-        CullResult[id.x]=1;
+        CullResult[id.x] = 1;
 }

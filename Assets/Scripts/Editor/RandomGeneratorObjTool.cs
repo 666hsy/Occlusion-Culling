@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using log4net.Util;
+using UnityEngine.UIElements;
 
 public class RandomGeneratorObjTool
 {
@@ -9,12 +10,14 @@ public class RandomGeneratorObjTool
     public static void RandomGenerateSphere()
     {
         GameObject SphereParent = GameObject.Find("SphereParent");
-        int sphereCount = 1000;
+        if (SphereParent == null)
+            SphereParent = new GameObject("SphereParent");
+
+        int sphereCount = 2000;
         Vector2 xRange = new Vector2(-250f, 250f);
         Vector2 yRange = new Vector2(0f, 30f);
         Vector2 zRange = new Vector2(-250f, 250f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
-        int group = Undo.GetCurrentGroup();
         for (int i = 0; i < sphereCount; i++)
         {
             // 随机生成位置
@@ -41,13 +44,7 @@ public class RandomGeneratorObjTool
     public static void DeleteAllSphere()
     {
         GameObject SphereParent = GameObject.Find("Instance/SphereParent");
-        Debug.Log(SphereParent.transform.childCount);
-        for (int i = 0; i < SphereParent.transform.childCount; i++)
-        {
-            Debug.Log(i);
-            var transform = SphereParent.transform.GetChild(i);
-            GameObject.DestroyImmediate(transform.gameObject);
-        }
+        GameObject.DestroyImmediate(SphereParent);
 
     }
 

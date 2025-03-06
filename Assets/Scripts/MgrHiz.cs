@@ -1,5 +1,4 @@
 using Unity.Collections;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -12,9 +11,13 @@ public class MgrHiz
     private string generateDepthMipTag = "GenerateDepthMip";
     private string hiZCullingTag = "HiZCullingTag";
     
-    private RenderTexture hzbDepthRT; //深度图RT
+    private RenderTexture hzbDepthRT;   //深度图RT
+    public Shader GenDepthRTShader;    //Hiz的Shader
     private Material genDepthRTMat;   //生成深度图的材质
-    
+
+    private Plane[] cameraFrustumPlanes = new Plane[6];
+    private Vector4[] cameraFrustumPlanesV4 = new Vector4[6];
+
     public ComputeShader GenerateMipmapCS;     //生成Mip的CS
     public ComputeShader GPUCullingCS;         //GPU剔除CS
     
@@ -23,6 +26,8 @@ public class MgrHiz
     
     public NativeArray<int> cullResultBackArray ;
     public bool readBackSuccess = false;
+
+    public bool Enable = false;
     
     public static MgrHiz Instance
     {
@@ -43,6 +48,7 @@ public class MgrHiz
         public static readonly int MaxCountID = Shader.PropertyToID("MaxCount");
         public static readonly int StaticMeshBufferID = Shader.PropertyToID("StaticBoundBuffer");
         public static readonly int CullingResultBufferID = Shader.PropertyToID("CullResult");
+        public static readonly int CameraFrustumPlanes = Shader.PropertyToID("CameraFrustumPlanes");
     }
 
     private void CreateHzbRT(int width,int height)
@@ -64,12 +70,8 @@ public class MgrHiz
     {
         if (hzbDepthRT == null)
             CreateHzbRT(renderingData.cameraData.camera.pixelWidth, renderingData.cameraData.camera.pixelHeight);
-        if (GenerateMipmapCS == null)
-            GenerateMipmapCS = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Shader/GenerateHzb.compute");
         if (genDepthRTMat == null)
-            genDepthRTMat = new Material(Shader.Find("Custom/GenerateDepthRT"));
-        if (GPUCullingCS == null)
-            GPUCullingCS = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Shader/GPUCulling.compute");
+            genDepthRTMat = new Material(GenDepthRTShader);
     }
 
     /// <summary>
@@ -79,7 +81,7 @@ public class MgrHiz
     public void GenerateDepthMip(ScriptableRenderContext context,ref RenderingData renderingData)
     {
         // scene view下不生成深度图
-        if (renderingData.cameraData.camera.name == "SceneCamera" || renderingData.cameraData.camera.name == "Preview Camera")
+        if (!Enable || renderingData.cameraData.camera.name == "SceneCamera" || renderingData.cameraData.camera.name == "Preview Camera")
             return;
         
         var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, true);
@@ -114,7 +116,7 @@ public class MgrHiz
     public void ExecuteCull(ScriptableRenderContext context, ref RenderingData renderingData)
     {
         // scene view下不做cull，直接使用GameView下的cull result
-        if (renderingData.cameraData.camera.name == "SceneCamera" ||
+        if (!Enable ||  renderingData.cameraData.camera.name == "SceneCamera" ||
             renderingData.cameraData.camera.name == "Preview Camera")
             return;
         
@@ -122,14 +124,30 @@ public class MgrHiz
         var camera = renderingData.cameraData.camera;
         
         CommandBuffer cmd = CommandBufferPool.Get(hiZCullingTag);
+
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.MaxCountID, StaticMeshBuffer.count);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.StaticMeshBufferID, StaticMeshBuffer);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.CullingResultBufferID, CullingResultBuffer);
+
+        UpdateCameraFrustumPlanes(camera);
+        //cmd.SetVe
         cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(StaticMeshBuffer.count / 64f), 1, 1);
         
         cmd.RequestAsyncReadback(CullingResultBuffer, (req)=>OnGPUCullingReadBack(req));
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
+    }
+
+    private void UpdateCameraFrustumPlanes(Camera camera)
+    {
+        GeometryUtility.CalculateFrustumPlanes(camera, cameraFrustumPlanes);
+        for (var i = 0; i < cameraFrustumPlanes.Length; i++)
+        {
+            Vector4 v4 = (Vector4)cameraFrustumPlanes[i].normal;
+            v4.w = cameraFrustumPlanes[i].distance;
+            cameraFrustumPlanesV4[i] = v4;
+        }
+        GPUCullingCS.SetVectorArray(ShaderConstants.CameraFrustumPlanes, cameraFrustumPlanesV4);
     }
 
     private void OnGPUCullingReadBack(AsyncGPUReadbackRequest request)

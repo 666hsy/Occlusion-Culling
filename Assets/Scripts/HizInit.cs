@@ -13,12 +13,12 @@ public class HizInit : MonoBehaviour
     private MeshRenderer[] renderers;
 
     private int[] staticCullResults;
-    private ComputeBuffer staticMeshBuffer;
-    
-    public int cullCount;
-
     private List<MeshRenderer> staticMeshRenders = new List<MeshRenderer>();
     private BoundStruct[] staticMeshBounds;
+
+    public ComputeShader GenerateHzbCS;
+    public Shader GenDepthRTShader;
+    public ComputeShader CullingCS;
 
     // 获取当前场景中静态物体的AABB包围盒数据并保存到贴图中
     private void Start()
@@ -34,9 +34,9 @@ public class HizInit : MonoBehaviour
         staticCullResults = new int[staticMeshRenders.Count];
         staticMeshBounds = new BoundStruct[staticMeshRenders.Count];
         int texSize = HizCullingFeature.HizCullingPass.cullTextureSize;
-        InitStaticAABB();
 
-        MgrHiz.Instance.cullResultBackArray = new NativeArray<int>(staticMeshRenders.Count, Allocator.Persistent);
+        InitStaticAABB();
+        InitMgrHzb();
     }
 
     private void InitStaticAABB()
@@ -55,11 +55,20 @@ public class HizInit : MonoBehaviour
                 };
             }
         }
+    }
+
+    private void InitMgrHzb()
+    {
+        MgrHiz.Instance.cullResultBackArray = new NativeArray<int>(staticMeshRenders.Count, Allocator.Persistent);
+        MgrHiz.Instance.Enable = true;
+        MgrHiz.Instance.GenerateMipmapCS = GenerateHzbCS;
+        MgrHiz.Instance.GenDepthRTShader = GenDepthRTShader;
+        MgrHiz.Instance.GPUCullingCS = CullingCS;
 
         MgrHiz.Instance.CullingResultBuffer = new ComputeBuffer(staticMeshRenders.Count, 4);
         MgrHiz.Instance.CullingResultBuffer.SetData(staticCullResults);
-        
-        MgrHiz.Instance.StaticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, 24);
+
+        MgrHiz.Instance.StaticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, sizeof(float) * 6);
         MgrHiz.Instance.StaticMeshBuffer.SetData(staticMeshBounds);
     }
 
@@ -83,42 +92,6 @@ public class HizInit : MonoBehaviour
         else
         {
             
-        }
-        var mipinfo = HizCullingFeature.HizCullingPass.GetHizInfo();
-
-        cullCount = 0;
-
-        if (!mipinfo.readBackSuccess)
-        {
-            for (int i = 0; i < staticMeshRenders.Count; i++)
-            {
-                // if (cullResults[i])
-                // {
-                //     staticMeshRenders[i].gameObject.SetActive(true);
-                //     cullResults[i] = false;
-                // }
-            }
-        }
-        else
-        {
-            bool HasChanged = false;
-            var cullResult = mipinfo.cullResultBackArray;
-            for (int i = 0; i < staticMeshRenders.Count; i++)
-            {
-                if (staticMeshRenders[i])
-                {
-                    bool needCull = cullResult[i] > 0f;
-                    if (needCull)
-                    {
-                        cullCount++;
-                    }
-                    
-                }
-            }
-
-            Debug.Log("frameCount: " + Time.frameCount + " Buffer index " + Time.frameCount % 3 + " : cullcount = " +
-                      cullCount);
-            // Debug.Log("frameCount: " + Time.frameCount + "HasChanged " + HasChanged);
         }
     }
 }
