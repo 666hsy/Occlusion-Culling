@@ -49,6 +49,9 @@ public class MgrHiz
         public static readonly int StaticMeshBufferID = Shader.PropertyToID("StaticBoundBuffer");
         public static readonly int CullingResultBufferID = Shader.PropertyToID("CullResult");
         public static readonly int CameraFrustumPlanes = Shader.PropertyToID("CameraFrustumPlanes");
+        public static readonly int CameraMatrixVP = Shader.PropertyToID("CameraMatrixVP");
+        public static readonly int HizDepthMap = Shader.PropertyToID("HizDepthMap");
+        public static readonly int HizDepthMapSize = Shader.PropertyToID("HizDepthMapSize");
     }
 
     private void CreateHzbRT(int width,int height)
@@ -84,7 +87,7 @@ public class MgrHiz
         if (!Enable || renderingData.cameraData.camera.name == "SceneCamera" || renderingData.cameraData.camera.name == "Preview Camera")
             return;
         
-        var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, true);
+        var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, false);
         lastVp = proj * renderingData.cameraData.camera.worldToCameraMatrix;
         EnsureResourceReady(renderingData);
         
@@ -130,7 +133,10 @@ public class MgrHiz
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.CullingResultBufferID, CullingResultBuffer);
 
         UpdateCameraFrustumPlanes(camera);
-        //cmd.SetVe
+        cmd.SetComputeMatrixParam(GPUCullingCS, ShaderConstants.CameraMatrixVP, lastVp);
+        cmd.SetComputeTextureParam(GPUCullingCS, 0, ShaderConstants.HizDepthMap, hzbDepthRT);
+        cmd.SetComputeVectorParam(GPUCullingCS, ShaderConstants.HizDepthMapSize, new Vector3(hzbDepthRT.width, hzbDepthRT.height, hzbDepthRT.mipmapCount));
+        
         cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(StaticMeshBuffer.count / 64f), 1, 1);
         
         cmd.RequestAsyncReadback(CullingResultBuffer, (req)=>OnGPUCullingReadBack(req));

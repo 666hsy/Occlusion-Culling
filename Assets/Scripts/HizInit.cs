@@ -89,9 +89,5 @@ public class HizInit : MonoBehaviour
                 }
             }
         }
-        else
-        {
-            
-        }
     }
 }
