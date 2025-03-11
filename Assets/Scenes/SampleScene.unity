@@ -108121,7 +108121,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 2147483647
+  m_StaticEditorFlags: 0
   m_IsActive: 1
 --- !u!64 &2007917082
 MeshCollider:
@@ -108449,6 +108449,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f76605603de4fbf41b2d65b7bbcd3a8e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  EnableLog: 0
   GenerateHzbCS: {fileID: 7200000, guid: 3672b97a79d939c4fa7e85a17a8d45cd, type: 3}
   GenDepthRTShader: {fileID: 4800000, guid: b06c0fff3a2c8d14e8f18fb2539d53de, type: 3}
   CullingCS: {fileID: 7200000, guid: 5ae17ca3de6c054438f9975cf06febbb, type: 3}

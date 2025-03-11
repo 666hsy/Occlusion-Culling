@@ -125,13 +125,11 @@ public class MgrHiz
         
         EnsureResourceReady(renderingData);
         var camera = renderingData.cameraData.camera;
-        
         CommandBuffer cmd = CommandBufferPool.Get(hiZCullingTag);
-
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.MaxCountID, StaticMeshBuffer.count);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.StaticMeshBufferID, StaticMeshBuffer);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.CullingResultBufferID, CullingResultBuffer);
-
+        
         UpdateCameraFrustumPlanes(camera);
         cmd.SetComputeMatrixParam(GPUCullingCS, ShaderConstants.CameraMatrixVP, lastVp);
         cmd.SetComputeTextureParam(GPUCullingCS, 0, ShaderConstants.HizDepthMap, hzbDepthRT);
@@ -165,6 +163,7 @@ public class MgrHiz
         }
         else
         {
+            Debug.LogError("ReaaBackFailed");
             readBackSuccess = false;
         }
     }

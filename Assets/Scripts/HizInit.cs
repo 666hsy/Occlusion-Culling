@@ -16,6 +16,7 @@ public class HizInit : MonoBehaviour
     private List<MeshRenderer> staticMeshRenders = new List<MeshRenderer>();
     private BoundStruct[] staticMeshBounds;
 
+    public bool EnableLog = true;
     public ComputeShader GenerateHzbCS;
     public Shader GenDepthRTShader;
     public ComputeShader CullingCS;
@@ -33,8 +34,7 @@ public class HizInit : MonoBehaviour
         
         staticCullResults = new int[staticMeshRenders.Count];
         staticMeshBounds = new BoundStruct[staticMeshRenders.Count];
-        int texSize = HizCullingFeature.HizCullingPass.cullTextureSize;
-
+        Log("共有{0}个静态物体", staticMeshBounds.Length);
         InitStaticAABB();
         InitMgrHzb();
     }
@@ -77,17 +77,27 @@ public class HizInit : MonoBehaviour
     {
         if (MgrHiz.Instance.readBackSuccess)
         {
+            int count = 0;
             for (int i = 0; i < staticMeshRenders.Count; i++)
             {
                 if(MgrHiz.Instance.cullResultBackArray[i]<=0)
                 {
                     staticMeshRenders[i].gameObject.SetActive(false);
+                    count++;
                 }
                 else
                 {
                     staticMeshRenders[i].gameObject.SetActive(true);
                 }
             }
+
+            Log("共剔除了{0}个静态物体", count);
         }
+    }
+
+    private void Log(string format, params object[] args)
+    {
+        if (EnableLog)
+            Debug.LogFormat(format, args);
     }
 }
