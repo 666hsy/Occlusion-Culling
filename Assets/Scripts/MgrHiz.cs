@@ -1,5 +1,6 @@
 using Unity.Collections;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
@@ -24,10 +25,13 @@ public class MgrHiz
     public ComputeBuffer StaticMeshBuffer;
     public ComputeBuffer CullingResultBuffer;
     
-    public NativeArray<int> cullResultBackArray ;
+    public int[] staticCullResults;
     public bool readBackSuccess = false;
 
     public bool Enable = false;
+    const int IntBits = 32;
+    int kernalInitialize = -1;
+    int kernalOcclusionCulling = -1;
     
     public static MgrHiz Instance
     {
@@ -52,14 +56,21 @@ public class MgrHiz
         public static readonly int CameraMatrixVP = Shader.PropertyToID("CameraMatrixVP");
         public static readonly int HizDepthMap = Shader.PropertyToID("HizDepthMap");
         public static readonly int HizDepthMapSize = Shader.PropertyToID("HizDepthMapSize");
+        public static readonly int NumIntMasksID = Shader.PropertyToID("NumIntMasks");
     }
 
     private void CreateHzbRT(int width,int height)
     {
         int resizeX = Mathf.IsPowerOfTwo(width) ? width : Mathf.NextPowerOfTwo(width); 
         int resizeY = Mathf.IsPowerOfTwo(height) ? height : Mathf.NextPowerOfTwo(height);
-
-        hzbDepthRT = new RenderTexture(resizeX, resizeY, 0, RenderTextureFormat.RHalf);
+        
+        RenderTextureFormat r16RTF = GraphicsFormatUtility.GetRenderTextureFormat(GraphicsFormat.R16_SFloat);
+        if (SystemInfo.SupportsRenderTextureFormat(r16RTF) &&
+            SystemInfo.SupportsRandomWriteOnRenderTextureFormat(r16RTF))
+            hzbDepthRT = new RenderTexture(resizeX, resizeY, 0, GraphicsFormat.R16_SFloat);
+        else
+            hzbDepthRT = new RenderTexture(resizeX, resizeY, 0, GraphicsFormat.R32_SFloat);
+        
         hzbDepthRT.name = "HzbDepthRT";
         hzbDepthRT.useMipMap = true;
         hzbDepthRT.autoGenerateMips = false;
@@ -126,6 +137,22 @@ public class MgrHiz
         EnsureResourceReady(renderingData);
         var camera = renderingData.cameraData.camera;
         CommandBuffer cmd = CommandBufferPool.Get(hiZCullingTag);
+        
+        if (kernalOcclusionCulling == -1)
+        {
+            kernalInitialize = GPUCullingCS.FindKernel("IntializeResultBuffer");
+        }
+
+        
+        int numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits);
+        numIntMasks = Mathf.Max(numIntMasks, 1);
+        cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.NumIntMasksID, numIntMasks);
+        int igx = Mathf.CeilToInt((float)numIntMasks / 64.0f);
+        igx = Mathf.Max(igx, 1);
+        cmd.SetComputeBufferParam(GPUCullingCS, kernalInitialize, ShaderConstants.CullingResultBufferID, CullingResultBuffer);
+        cmd.DispatchCompute(GPUCullingCS, kernalInitialize, igx, 1, 1);
+        
+        
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.MaxCountID, StaticMeshBuffer.count);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.StaticMeshBufferID, StaticMeshBuffer);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.CullingResultBufferID, CullingResultBuffer);
@@ -158,7 +185,7 @@ public class MgrHiz
     {
         if (request.done && !request.hasError)
         {
-            cullResultBackArray.CopyFrom(request.GetData<int>());
+            request.GetData<int>().CopyTo(staticCullResults);
             readBackSuccess = true;
         }
         else

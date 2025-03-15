@@ -1,5 +1,6 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel GPUCulling
+#pragma kernel IntializeResultBuffer
 
 #include "Common.hlsl"
 
@@ -9,11 +10,12 @@ uint MaxCount;
 float4x4 CameraMatrixVP;
 Texture2D<half> HizDepthMap;
 float3 HizDepthMapSize;
-RWStructuredBuffer<uint> CullResult;
+RWStructuredBuffer<int> CullResult;
 RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
 
 uniform float4 CameraFrustumPlanes[6];  //视锥体的6个面
-
+int NumIntMasks;
+#define INT_BITS 32
 //测试是否在平面的外侧
 bool IsOutSidePlane(float4 plane, float3 position)
 {
@@ -57,14 +59,6 @@ float3 TransformWorldToUVD(float3 positionWS)
     float4 positionHS = mul(CameraMatrixVP, float4(positionWS, 1.0));
     float3 uvd = positionHS.xyz / positionHS.w;
     uvd.xy = (uvd.xy + 1) * 0.5;
-    //点可能跑到摄像机背后去，深度会变成负数，需要特殊处理一下
-    // if(uvd.z < 0){
-    //     #if _REVERSE_Z
-    //     uvd.z = 1;
-    //     #else
-    //     uvd.z = 0;
-    //     #endif
-    // }
     return uvd;
 }
 
@@ -132,12 +126,32 @@ bool HZBCulling(BoundStruct bounds)
     
     return false;
 }
+
+
+
 [numthreads(64,1,1)]
 void GPUCulling (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= MaxCount) return;
     if (FrustumCull(CameraFrustumPlanes, StaticBoundBuffer[id.x]) || HZBCulling(StaticBoundBuffer[id.x]))
-        CullResult[id.x] = 0; //0为不可见
+    {
+        
+    }
     else
-        CullResult[id.x] = 1;
+    {
+        int offset = id.x / INT_BITS;
+        int integer = 0; 
+        int bit = id.x - offset * INT_BITS;
+        bit = 1 << bit;
+        InterlockedOr(CullResult[offset], bit, integer);
+    }
+}
+
+[numthreads(64,1,1)]
+void IntializeResultBuffer (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < NumIntMasks)
+    {
+        CullResult[id.x] = 0;
+    }
 }
