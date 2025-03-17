@@ -20,13 +20,37 @@ public class HizInit : MonoBehaviour
     public bool EnableLog = true;
     public ComputeShader GenerateHzbCS;
     public Shader GenDepthRTShader;
+    
     public ComputeShader CullingCS;
-    private bool enableHZB = true;
+
+    private bool _enableHZB = true;
+    private bool enableHZB
+    {
+        get
+        {
+            return _enableHZB;
+        }
+        set
+        {
+            if (value)
+            {
+                Log("开启HZB");
+                CullingCS.EnableKeyword("ENABLE_HIZ_CULL");
+            }
+
+            else
+            {
+                Log("关闭HZB");
+                CullingCS.DisableKeyword("ENABLE_HIZ_CULL");
+            }
+        }
+    }
+    
 
     // 获取当前场景中静态物体的AABB包围盒数据并保存到贴图中
     private void Start()
     {
-        Application.targetFrameRate = 45;
+        Application.targetFrameRate = 60;
         Camera.main.depthTextureMode |= DepthTextureMode.Depth;
         renderers = FindObjectsOfType<OCMesh>();
         foreach (var meshRenderer in renderers)
@@ -37,6 +61,7 @@ public class HizInit : MonoBehaviour
         
         staticMeshBounds = new BoundStruct[staticMeshRenders.Count];
         Log("共有{0}个静态物体", staticMeshBounds.Length);
+        enableHZB = true;
         InitStaticAABB();
         InitMgrHzb();
     }
@@ -69,7 +94,7 @@ public class HizInit : MonoBehaviour
         
         int numInts = Mathf.CeilToInt((float)staticMeshRenders.Count / (float)IntBits);
         MgrHiz.Instance.staticCullResults = new int[numInts];
-        MgrHiz.Instance.CullingResultBuffer = new ComputeBuffer(numInts, 4);
+        MgrHiz.Instance.CullingResultBuffer = new ComputeBuffer(numInts, 4);     
         MgrHiz.Instance.CullingResultBuffer.SetData(MgrHiz.Instance.staticCullResults);
         
         Log("StaticMeshBuffer Count:{0}", staticMeshRenders.Count);
@@ -95,7 +120,7 @@ public class HizInit : MonoBehaviour
                 staticMeshRenders[i].gameObject.SetActive(visible);
             }
 
-            // Log("共剔除了{0}个静态物体", count);
+            Log("共剔除了{0}个静态物体", count);
         }
     }
 
@@ -107,10 +132,7 @@ public class HizInit : MonoBehaviour
 
     public void SwitchHZB()
     {
-        enableHZB = !enableHZB;
-        if (enableHZB)
-            Log("开启HZB");
-        else
-            Log("关闭HZB");
+        _enableHZB = !_enableHZB;
+        enableHZB = _enableHZB;
     }
 }

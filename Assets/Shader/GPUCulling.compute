@@ -2,6 +2,7 @@
 #pragma kernel GPUCulling
 #pragma kernel IntializeResultBuffer
 
+#pragma multi_compile_local __ ENABLE_HIZ_CULL
 #include "Common.hlsl"
 
 #pragma enable_d3d11_debug_symbols
@@ -105,6 +106,7 @@ float SampleHiz(float2 uv,float mip,float mipTexSize){
 
 bool HZBCulling(BoundStruct bounds)
 {
+    #if ENABLE_HIZ_CULL
     Bounds boundsUVD = GetBoundsUVD(bounds);
     uint mip = GetHizMip(boundsUVD);
     float3 minP = boundsUVD.minPosition;
@@ -115,7 +117,6 @@ bool HZBCulling(BoundStruct bounds)
     float d3 = SampleHiz(float2(minP.x,maxP.y),mip,mipTexSize);
     float d4 = SampleHiz(float2(maxP.x,minP.y),mip,mipTexSize);
     
-    
     #if UNITY_REVERSED_Z
     float depth = minP.z;
     return d1 < depth && d2 < depth && d3 < depth && d4 < depth;
@@ -124,9 +125,10 @@ bool HZBCulling(BoundStruct bounds)
     return d1 > depth && d2 > depth && d3 > depth && d4 > depth;
     #endif
     
+    #endif
+    
     return false;
 }
-
 
 
 [numthreads(64,1,1)]
