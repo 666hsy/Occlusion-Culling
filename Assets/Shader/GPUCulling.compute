@@ -4,12 +4,15 @@
 
 #pragma multi_compile_local __ ENABLE_HIZ_CULL
 #include "Common.hlsl"
+// #include "UnityCG.cginc"
 
 #pragma enable_d3d11_debug_symbols
 uint MaxCount;
 
 float4x4 CameraMatrixVP;
 Texture2D<half> HizDepthMap;
+SamplerState sampler_HizDepthMap;
+
 float3 HizDepthMapSize;
 RWStructuredBuffer<int> CullResult;
 RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
@@ -60,6 +63,7 @@ float3 TransformWorldToUVD(float3 positionWS)
     float4 positionHS = mul(CameraMatrixVP, float4(positionWS, 1.0));
     float3 uvd = positionHS.xyz / positionHS.w;
     uvd.xy = (uvd.xy + 1) * 0.5;
+    // uvd.y=1-uvd.y;
     return uvd;
 }
 
@@ -94,14 +98,8 @@ uint GetHizMip(Bounds boundsUVD){
     float3 maxP = boundsUVD.maxPosition;
     float2 size = (maxP.xy - minP.xy) * HizDepthMapSize.xy;
     uint2 mip2 = log2(max(size.x, size.y));
-    uint mip = clamp(max(mip2.x,mip2.y),1,HizDepthMapSize.z - 1);
+    uint mip = clamp(mip2,1,HizDepthMapSize.z - 1);
     return mip;
-}
-
-float SampleHiz(float2 uv,float mip,float mipTexSize){
-    uint2 coord = floor(uv * mipTexSize);
-    coord = min(coord,round(mipTexSize)-1);
-    return HizDepthMap.mips[mip][coord].r; 
 }
 
 bool HZBCulling(BoundStruct bounds)
@@ -111,11 +109,10 @@ bool HZBCulling(BoundStruct bounds)
     uint mip = GetHizMip(boundsUVD);
     float3 minP = boundsUVD.minPosition;
     float3 maxP = boundsUVD.maxPosition;
-    float mipTexSize = round(HizDepthMapSize.x / pow(2,mip));
-    float d1 = SampleHiz(minP.xy,mip,mipTexSize); 
-    float d2 = SampleHiz(maxP.xy,mip,mipTexSize); 
-    float d3 = SampleHiz(float2(minP.x,maxP.y),mip,mipTexSize);
-    float d4 = SampleHiz(float2(maxP.x,minP.y),mip,mipTexSize);
+    float d1 = HizDepthMap.SampleLevel(sampler_HizDepthMap,minP.xy,mip).r;
+    float d2 = HizDepthMap.SampleLevel(sampler_HizDepthMap,maxP.xy,mip).r;
+    float d3 = HizDepthMap.SampleLevel(sampler_HizDepthMap,float2(minP.x,maxP.y),mip).r;
+    float d4 = HizDepthMap.SampleLevel(sampler_HizDepthMap,float2(maxP.x,minP.y),mip).r;
     
     #if UNITY_REVERSED_Z
     float depth = minP.z;
