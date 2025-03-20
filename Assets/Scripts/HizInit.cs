@@ -120,7 +120,14 @@ public class HizInit : MonoBehaviour
                 staticMeshRenders[i].gameObject.SetActive(visible);
             }
 
+            MgrHiz.Instance.readBackSuccess = false;
             Log("共剔除了{0}个静态物体", count);
+        }
+        else
+        {
+            Log("剔除结果读取失败 frameCount:{0}", Time.frameCount);
+            for (int i = 0; i < staticMeshRenders.Count; i++)
+                staticMeshRenders[i].gameObject.SetActive(true);
         }
     }
 
