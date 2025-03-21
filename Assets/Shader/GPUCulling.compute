@@ -1,16 +1,25 @@
 // Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel GPUCulling
+#pragma kernel IntializeResultBuffer
 
+#pragma multi_compile_local __ ENABLE_HIZ_CULL
 #include "Common.hlsl"
+// #include "UnityCG.cginc"
 
 #pragma enable_d3d11_debug_symbols
 uint MaxCount;
 
-RWStructuredBuffer<uint> CullResult;
+float4x4 CameraMatrixVP;
+Texture2D<half> HizDepthMap;
+SamplerState sampler_HizDepthMap;
+
+float3 HizDepthMapSize;
+RWStructuredBuffer<int> CullResult;
 RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
 
 uniform float4 CameraFrustumPlanes[6];  //视锥体的6个面
-
+int NumIntMasks;
+#define INT_BITS 32
 //测试是否在平面的外侧
 bool IsOutSidePlane(float4 plane, float3 position)
 {
@@ -48,16 +57,100 @@ bool FrustumCull(float4 planes[6], BoundStruct bounds)
     IsBoundsOutSidePlane(planes[5], bounds);
 }
 
+//将世界坐标转为uv+depth
+float3 TransformWorldToUVD(float3 positionWS)
+{
+    float4 positionHS = mul(CameraMatrixVP, float4(positionWS, 1.0));
+    float3 uvd = positionHS.xyz / positionHS.w;
+    uvd.xy = (uvd.xy + 1) * 0.5;
+    // uvd.y=1-uvd.y;
+    return uvd;
+}
+
+Bounds GetBoundsUVD(BoundStruct boundsWS){
+
+    Bounds boundsUVD;
+
+    float3 boundsMin = boundsWS.center-boundsWS.size/2;
+    float3 boundsMax = boundsWS.center+boundsWS.size/2;
+
+    float3 p0 = TransformWorldToUVD(boundsMin);
+    float3 p1 = TransformWorldToUVD(boundsMax);
+    float3 p2 = TransformWorldToUVD(float3(boundsMin.x,boundsMin.y,boundsMax.z));
+    float3 p3 = TransformWorldToUVD(float3(boundsMin.x,boundsMax.y,boundsMin.z));
+    float3 p4 = TransformWorldToUVD(float3(boundsMin.x,boundsMax.y,boundsMax.z));
+    float3 p5 = TransformWorldToUVD(float3(boundsMax.x,boundsMin.y,boundsMax.z));
+    float3 p6 = TransformWorldToUVD(float3(boundsMax.x,boundsMax.y,boundsMin.z));
+    float3 p7 = TransformWorldToUVD(float3(boundsMax.x,boundsMin.y,boundsMin.z));
+
+    float3 min1 = min(min(p0,p1),min(p2,p3));
+    float3 min2 = min(min(p4,p5),min(p6,p7));
+    boundsUVD.minPosition = min(min1,min2);
+
+    float3 max1 = max(max(p0,p1),max(p2,p3));
+    float3 max2 = max(max(p4,p5),max(p6,p7));
+    boundsUVD.maxPosition = max(max1,max2);
+    return boundsUVD;
+}
+
+uint GetHizMip(Bounds boundsUVD){
+    float3 minP = boundsUVD.minPosition;
+    float3 maxP = boundsUVD.maxPosition;
+    float2 size = (maxP.xy - minP.xy) * HizDepthMapSize.xy;
+    uint2 mip2 = log2(max(size.x, size.y));
+    uint mip = clamp(mip2,1,HizDepthMapSize.z - 1);
+    return mip;
+}
+
 bool HZBCulling(BoundStruct bounds)
 {
+    #if ENABLE_HIZ_CULL
+    Bounds boundsUVD = GetBoundsUVD(bounds);
+    uint mip = GetHizMip(boundsUVD);
+    float3 minP = boundsUVD.minPosition;
+    float3 maxP = boundsUVD.maxPosition;
+    float d1 = HizDepthMap.SampleLevel(sampler_HizDepthMap,minP.xy,mip).r;
+    float d2 = HizDepthMap.SampleLevel(sampler_HizDepthMap,maxP.xy,mip).r;
+    float d3 = HizDepthMap.SampleLevel(sampler_HizDepthMap,float2(minP.x,maxP.y),mip).r;
+    float d4 = HizDepthMap.SampleLevel(sampler_HizDepthMap,float2(maxP.x,minP.y),mip).r;
+    
+    #if UNITY_REVERSED_Z
+    float depth = minP.z;
+    return d1 < depth && d2 < depth && d3 < depth && d4 < depth;
+    #else
+    float depth = maxP.z;
+    return d1 > depth && d2 > depth && d3 > depth && d4 > depth;
+    #endif
+    
+    #endif
+    
     return false;
 }
+
+
 [numthreads(64,1,1)]
 void GPUCulling (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= MaxCount) return;
     if (FrustumCull(CameraFrustumPlanes, StaticBoundBuffer[id.x]) || HZBCulling(StaticBoundBuffer[id.x]))
-        CullResult[id.x] = 0; //0为不可见
+    {
+        
+    }
     else
-        CullResult[id.x] = 1;
+    {
+        int offset = id.x / INT_BITS;
+        int integer = 0; 
+        int bit = id.x - offset * INT_BITS;
+        bit = 1 << bit;
+        InterlockedOr(CullResult[offset], bit, integer);
+    }
+}
+
+[numthreads(64,1,1)]
+void IntializeResultBuffer (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < NumIntMasks)
+    {
+        CullResult[id.x] = 0;
+    }
 }
