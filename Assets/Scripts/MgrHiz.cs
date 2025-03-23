@@ -12,7 +12,7 @@ public class MgrHiz
     private string generateDepthMipTag = "GenerateDepthMip";
     private string hiZCullingTag = "HiZCullingTag";
     
-    private RenderTexture hzbDepthRT;   //深度图RT
+    public RenderTexture hzbDepthRT;   //深度图RT
     public Shader GenDepthRTShader;    //Hiz的Shader
     private Material genDepthRTMat;   //生成深度图的材质
 
@@ -32,6 +32,7 @@ public class MgrHiz
     const int IntBits = 32;
     int kernalInitialize = -1;
     int kernalOcclusionCulling = -1;
+    public bool enableDpth = false;
     
     public static MgrHiz Instance
     {
@@ -190,8 +191,19 @@ public class MgrHiz
         }
         else
         {
-            Debug.LogError("ReaaBackFailed");
+            Debug.LogError("ReadBackFailed");
             readBackSuccess = false;
+        }
+    }
+    
+    public void ShowDepth(ScriptableRenderContext context, ref RenderingData renderingData,Material _depthMaterial)
+    {
+        if (enableDpth)
+        {
+            var cmd = CommandBufferPool.Get("DepthMapPass");
+            cmd.Blit(MgrHiz.Instance.hzbDepthRT, renderingData.cameraData.renderer.cameraColorTarget, _depthMaterial);
+            context.ExecuteCommandBuffer(cmd);
+            CommandBufferPool.Release(cmd);
         }
     }
 }

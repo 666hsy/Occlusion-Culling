@@ -24,6 +24,7 @@ public class HizInit : MonoBehaviour
     public ComputeShader CullingCS;
 
     private bool _enableHZB = true;
+    public Material depthMaterial;
     private bool enableHZB
     {
         get
@@ -50,7 +51,7 @@ public class HizInit : MonoBehaviour
     // 获取当前场景中静态物体的AABB包围盒数据并保存到贴图中
     private void Start()
     {
-        Application.targetFrameRate = 60;
+        Application.targetFrameRate = 90;
         Camera.main.depthTextureMode |= DepthTextureMode.Depth;
         renderers = FindObjectsOfType<OCMesh>();
         foreach (var meshRenderer in renderers)
@@ -64,6 +65,7 @@ public class HizInit : MonoBehaviour
         enableHZB = true;
         InitStaticAABB();
         InitMgrHzb();
+        depthMaterial = new Material(Shader.Find("Unlit/Texture"));
     }
 
     private void InitStaticAABB()
@@ -141,5 +143,10 @@ public class HizInit : MonoBehaviour
     {
         _enableHZB = !_enableHZB;
         enableHZB = _enableHZB;
+    }
+
+    public void SwitchDepth()
+    {
+        MgrHiz.Instance.enableDpth=!MgrHiz.Instance.enableDpth;
     }
 }
