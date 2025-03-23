@@ -14,10 +14,16 @@ public class HizInit : MonoBehaviour
 
     
     private List<MeshRenderer> staticMeshRenders = new List<MeshRenderer>();
+    private List<MeshRenderer> dynamicMeshRenders = new List<MeshRenderer>();
+    private List<Vector3> targetPositions=new List<Vector3>();
+        
     private BoundStruct[] staticMeshBounds;
+    private BoundStruct[] dynamicMeshBounds;
+    
     const int IntBits = 32;
-
+    public float moveSpeed = 2f; 
     public bool EnableLog = true;
+    public bool EnableDynamicCull = true;
     public ComputeShader GenerateHzbCS;
     public Shader GenDepthRTShader;
     
@@ -25,6 +31,7 @@ public class HizInit : MonoBehaviour
 
     private bool _enableHZB = true;
     public Material depthMaterial;
+    
     private bool enableHZB
     {
         get
@@ -47,25 +54,59 @@ public class HizInit : MonoBehaviour
         }
     }
     
+    private Vector3 GetRandomPosition()
+    {
+        float x = Random.Range(-500, 500);
+        float y = Random.Range(0, 30);
+        float z = Random.Range(-500, 500);
+        return new Vector3(x, y, z);
+    }
+    
 
     // 获取当前场景中静态物体的AABB包围盒数据并保存到贴图中
     private void Start()
     {
-        Application.targetFrameRate = 90;
+        Application.targetFrameRate = 120;
         Camera.main.depthTextureMode |= DepthTextureMode.Depth;
         renderers = FindObjectsOfType<OCMesh>();
         foreach (var meshRenderer in renderers)
         {
             if (meshRenderer.isStaticMesh)
                 staticMeshRenders.Add(meshRenderer.gameObject.GetComponent<MeshRenderer>());
+            else
+            {
+                dynamicMeshRenders.Add(meshRenderer.gameObject.GetComponent<MeshRenderer>());
+                targetPositions.Add(GetRandomPosition());
+            }
         }
         
         staticMeshBounds = new BoundStruct[staticMeshRenders.Count];
-        Log("共有{0}个静态物体", staticMeshBounds.Length);
+        dynamicMeshBounds = new BoundStruct[dynamicMeshRenders.Count];
+        Log("共有{0}个静态物体 {0}个动态物体", staticMeshBounds.Length, dynamicMeshBounds.Length);
+        
         enableHZB = true;
         InitStaticAABB();
         InitMgrHzb();
         depthMaterial = new Material(Shader.Find("Unlit/Texture"));
+    }
+    
+    void Update()
+    {
+        // 移动立方体
+        for (int i = 0; i < dynamicMeshRenders.Count; i++)
+        {
+            Vector3 currentPosition = dynamicMeshRenders[i].transform.position;
+            Vector3 target = targetPositions[i];
+
+            // 移动立方体到目标位置
+            dynamicMeshRenders[i].transform.position = Vector3.MoveTowards(currentPosition, target, moveSpeed * Time.deltaTime);
+
+            // 如果到达目标位置，设置新的目标位置
+            if (currentPosition == target)
+                targetPositions[i] = GetRandomPosition();
+        }
+        if(EnableDynamicCull) 
+            UpdateDynamicAABB();
     }
 
     private void InitStaticAABB()
@@ -85,6 +126,24 @@ public class HizInit : MonoBehaviour
             }
         }
     }
+    
+    private void UpdateDynamicAABB()
+    {
+        for (int i = 0; i < dynamicMeshRenders.Count; i++)
+        {
+            if (dynamicMeshRenders[i] != null)
+            {
+                Bounds aabb = dynamicMeshRenders[i].bounds;
+                var center = aabb.center;
+                var size = aabb.size;
+                dynamicMeshBounds[i].center=center;
+                dynamicMeshBounds[i].size=size;
+            }
+        }
+        
+        MgrHiz.Instance.DynamicMeshBuffer ??= new ComputeBuffer(dynamicMeshRenders.Count, sizeof(float) * 6);
+        MgrHiz.Instance.DynamicMeshBuffer.SetData(dynamicMeshBounds);
+    }
 
     private void InitMgrHzb()
     {
@@ -93,11 +152,12 @@ public class HizInit : MonoBehaviour
         MgrHiz.Instance.GenDepthRTShader = GenDepthRTShader;
         MgrHiz.Instance.GPUCullingCS = CullingCS;
         Log("Result StaticMeshBuffer Count:{0}", staticMeshRenders.Count);
-        
-        int numInts = Mathf.CeilToInt((float)staticMeshRenders.Count / (float)IntBits);
-        MgrHiz.Instance.staticCullResults = new int[numInts];
+
+        int numInts = Mathf.CeilToInt((float)staticMeshRenders.Count / (float)IntBits) +
+                      Mathf.CeilToInt((float)dynamicMeshRenders.Count / (float)IntBits);
+        MgrHiz.Instance.cullResults = new int[numInts];
         MgrHiz.Instance.CullingResultBuffer = new ComputeBuffer(numInts, 4);     
-        MgrHiz.Instance.CullingResultBuffer.SetData(MgrHiz.Instance.staticCullResults);
+        MgrHiz.Instance.CullingResultBuffer.SetData(MgrHiz.Instance.cullResults);
         
         Log("StaticMeshBuffer Count:{0}", staticMeshRenders.Count);
         MgrHiz.Instance.StaticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, sizeof(float) * 6);
@@ -113,7 +173,7 @@ public class HizInit : MonoBehaviour
             for (int i = 0; i < staticMeshRenders.Count; i++)
             {
                 int intIndex = i / IntBits;
-                int integer = MgrHiz.Instance.staticCullResults[intIndex];
+                int integer = MgrHiz.Instance.cullResults[intIndex];
                 int bit = i - intIndex * IntBits;
                 int mask = 1 << bit;
                 bool visible = (integer & mask) != 0;

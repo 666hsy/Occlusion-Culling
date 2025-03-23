@@ -24,8 +24,9 @@ public class MgrHiz
     
     public ComputeBuffer StaticMeshBuffer;
     public ComputeBuffer CullingResultBuffer;
-    
-    public int[] staticCullResults;
+    public int[] cullResults;    //存储剔除结果 静态+动态，对应ComputeShader中的CullResult
+
+    public ComputeBuffer DynamicMeshBuffer;
     public bool readBackSuccess = false;
 
     public bool Enable = false;
@@ -144,8 +145,9 @@ public class MgrHiz
             kernalInitialize = GPUCullingCS.FindKernel("IntializeResultBuffer");
         }
 
-        
-        int numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits);
+
+        int numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits) +
+                          Mathf.CeilToInt((float)DynamicMeshBuffer.count / (float)IntBits);
         numIntMasks = Mathf.Max(numIntMasks, 1);
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.NumIntMasksID, numIntMasks);
         int igx = Mathf.CeilToInt((float)numIntMasks / 64.0f);
@@ -186,7 +188,7 @@ public class MgrHiz
     {
         if (request.done && !request.hasError)
         {
-            request.GetData<int>().CopyTo(staticCullResults);
+            request.GetData<int>().CopyTo(cullResults);
             readBackSuccess = true;
         }
         else

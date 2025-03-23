@@ -63,7 +63,6 @@ float3 TransformWorldToUVD(float3 positionWS)
     float4 positionHS = mul(CameraMatrixVP, float4(positionWS, 1.0));
     float3 uvd = positionHS.xyz / positionHS.w;
     uvd.xy = (uvd.xy + 1) * 0.5;
-    // uvd.y=1-uvd.y;
     return uvd;
 }
 

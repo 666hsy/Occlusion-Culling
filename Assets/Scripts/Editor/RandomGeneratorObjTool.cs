@@ -41,14 +41,15 @@ public class RandomGeneratorObjTool
             mesh.isStaticMesh = true;
 
         }
-        Debug.Log($"生成了 {StaticSphereCount} 个球体");
+        Debug.Log($"生成了 {StaticSphereCount} 个静态球体");
     }
 
     [MenuItem("Tools/生成工具/删除所有球")]
     public static void DeleteAllSphere()
     {
-        GameObject SphereParent = GameObject.Find("Instance/SphereParent");
-        GameObject.DestroyImmediate(SphereParent);
+        GameObject SphereParent = GameObject.Find("SphereParent");
+        if(SphereParent!=null)
+            GameObject.DestroyImmediate(SphereParent);
     }
     
     [MenuItem("Tools/生成工具/生成动态立方体")]
@@ -70,6 +71,7 @@ public class RandomGeneratorObjTool
                 Random.Range(yRange.x, yRange.y),
                 Random.Range(zRange.x, zRange.y)
             );
+            Quaternion rot = Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360));
 
             // 随机生成均匀缩放
             float scale = Random.Range(scaleRange.x, scaleRange.y);
@@ -77,18 +79,19 @@ public class RandomGeneratorObjTool
             // 创建球体
             GameObject sphere = GameObject.CreatePrimitive(PrimitiveType.Cube);
             sphere.transform.position = pos;
+            sphere.transform.rotation = rot;
             sphere.transform.localScale = new Vector3(scale, scale, scale);
             sphere.transform.parent = CubeParent.transform;
             var mesh = sphere.AddComponent<OCMesh>();
             mesh.isStaticMesh = false;
         }
-        Debug.Log($"生成了 {DynamicCubeCount} 个球体");
+        Debug.Log($"生成了 {DynamicCubeCount} 个动态立方体");
     }
     
     [MenuItem("Tools/生成工具/删除所有立方体")]
     public static void DeleteAllCube()
     {
-        GameObject CubeParent = GameObject.Find("Instance/CubeParent");
+        GameObject CubeParent = GameObject.Find("CubeParent");
         GameObject.DestroyImmediate(CubeParent);
     }
 
