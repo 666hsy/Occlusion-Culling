@@ -66,7 +66,7 @@ public class HizInit : MonoBehaviour
     // 获取当前场景中静态物体的AABB包围盒数据并保存到贴图中
     private void Start()
     {
-        Application.targetFrameRate = 120;
+        Application.targetFrameRate = -1;
         Camera.main.depthTextureMode |= DepthTextureMode.Depth;
         renderers = FindObjectsOfType<OCMesh>();
         foreach (var meshRenderer in renderers)
@@ -107,6 +107,8 @@ public class HizInit : MonoBehaviour
         }
         if(EnableDynamicCull) 
             UpdateDynamicAABB();
+
+        MgrHiz.Instance.stopwatch.Start();
     }
 
     private void InitStaticAABB()
@@ -208,5 +210,20 @@ public class HizInit : MonoBehaviour
     public void SwitchDepth()
     {
         MgrHiz.Instance.enableDpth=!MgrHiz.Instance.enableDpth;
+    }
+    public void OnDestroy()
+    {
+        MgrHiz.Instance.Enable = false;
+        MgrHiz.Instance.CullingResultBuffer?.Dispose();
+        MgrHiz.Instance.StaticMeshBuffer?.Dispose();
+        MgrHiz.Instance.DynamicMeshBuffer?.Dispose();
+
+        if (MgrHiz.Instance.latencyResults.Count > 0)
+        {
+            double sum = 0;
+            foreach (var latency in MgrHiz.Instance.latencyResults) sum += latency;
+            double avg = sum / MgrHiz.Instance.latencyResults.Count;
+            Log("回读延迟平均值:{0}ms", avg);
+        }
     }
 }

@@ -1,4 +1,5 @@
-using Unity.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -34,7 +35,15 @@ public class MgrHiz
     int kernalInitialize = -1;
     int kernalOcclusionCulling = -1;
     public bool enableDpth = false;
-    
+
+    public Stopwatch stopwatch = new Stopwatch();
+
+    // 存储未完成的请求及其时间戳
+    private Queue<long> pendingRequestTimestamps = new Queue<long>();
+
+    // 存储延迟结果（毫秒）
+    public List<double> latencyResults = new List<double>();
+
     public static MgrHiz Instance
     {
         get
@@ -145,9 +154,14 @@ public class MgrHiz
             kernalInitialize = GPUCullingCS.FindKernel("IntializeResultBuffer");
         }
 
+        int numIntMasks = 0;
 
-        int numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits) +
+        if (DynamicMeshBuffer != null)
+            numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits) +
                           Mathf.CeilToInt((float)DynamicMeshBuffer.count / (float)IntBits);
+        else
+            numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits);
+
         numIntMasks = Mathf.Max(numIntMasks, 1);
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.NumIntMasksID, numIntMasks);
         int igx = Mathf.CeilToInt((float)numIntMasks / 64.0f);
@@ -166,7 +180,11 @@ public class MgrHiz
         cmd.SetComputeVectorParam(GPUCullingCS, ShaderConstants.HizDepthMapSize, new Vector3(hzbDepthRT.width, hzbDepthRT.height, hzbDepthRT.mipmapCount));
         
         cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(StaticMeshBuffer.count / 64f), 1, 1);
-        
+
+        // 记录发起请求的时间戳（以Stopwatch的Ticks为单位）
+        long requestTimestamp = stopwatch.ElapsedTicks;
+        pendingRequestTimestamps.Enqueue(requestTimestamp);
+
         cmd.RequestAsyncReadback(CullingResultBuffer, (req)=>OnGPUCullingReadBack(req));
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
@@ -190,10 +208,18 @@ public class MgrHiz
         {
             request.GetData<int>().CopyTo(cullResults);
             readBackSuccess = true;
+
+            long callbackTimestamp = stopwatch.ElapsedTicks;
+            long latencyTicks = callbackTimestamp - pendingRequestTimestamps.Dequeue();
+
+            // 转换为毫秒（Stopwatch.Frequency单位为Hz，1秒=1e7 ticks）
+            double latencyMs = (latencyTicks * 1000.0) / Stopwatch.Frequency;
+            latencyResults.Add(latencyMs);
+
         }
         else
         {
-            Debug.LogError("ReadBackFailed");
+            UnityEngine.Debug.LogError("ReadBackFailed");
             readBackSuccess = false;
         }
     }
