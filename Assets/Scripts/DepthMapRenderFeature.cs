@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using static HizCullingFeature;
 
 public class DepthMapRenderFeature : ScriptableRendererFeature
 {
@@ -16,6 +17,7 @@ public class DepthMapRenderFeature : ScriptableRendererFeature
     public override void Create()
     {
         _renderPass = new DepthMapRenderPass(settings.depthMaterial);
+        _renderPass.renderPassEvent = RenderPassEvent.AfterRenderingSkybox + 1;
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
@@ -35,23 +37,10 @@ public class DepthMapRenderPass : ScriptableRenderPass
         _depthTexture.Init("_DepthTexture");
     }
 
-    public override void Configure(CommandBuffer cmd, RenderTextureDescriptor cameraTextureDescriptor)
-    {
-        // 配置深度纹理（需与URP的深度格式匹配）
-        cmd.GetTemporaryRT(_depthTexture.id, cameraTextureDescriptor);
-        ConfigureTarget(_depthTexture.Identifier());
-        ConfigureClear(ClearFlag.All, Color.black);
-    }
-
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
         if (_depthMaterial == null) return;
         MgrHiz.Instance.ShowDepth(context, ref renderingData, _depthMaterial);
 
-    }
-
-    public override void FrameCleanup(CommandBuffer cmd)
-    {
-        cmd.ReleaseTemporaryRT(_depthTexture.id);
     }
 }

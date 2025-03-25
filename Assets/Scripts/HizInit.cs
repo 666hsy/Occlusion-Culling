@@ -31,7 +31,10 @@ public class HizInit : MonoBehaviour
 
     private bool _enableHZB = true;
     public Material depthMaterial;
-    
+
+    public long TotalFrameCount = 0;
+    public long FailFrameCount = 0;
+
     private bool enableHZB
     {
         get
@@ -157,10 +160,16 @@ public class HizInit : MonoBehaviour
 
         int numInts = Mathf.CeilToInt((float)staticMeshRenders.Count / (float)IntBits) +
                       Mathf.CeilToInt((float)dynamicMeshRenders.Count / (float)IntBits);
-        MgrHiz.Instance.cullResults = new int[numInts];
-        MgrHiz.Instance.CullingResultBuffer = new ComputeBuffer(numInts, 4);     
-        MgrHiz.Instance.CullingResultBuffer.SetData(MgrHiz.Instance.cullResults);
-        
+
+        for (int i = 0; i < MgrHiz.HZBInfoCount; i++)
+        {
+            MgrHiz.Instance.hzbInfos[i] = new HZBInfo();
+            var hzbInfo = MgrHiz.Instance.hzbInfos[i];
+            hzbInfo.cullResults = new int[numInts];
+            hzbInfo.CullingResultBuffer = new ComputeBuffer(numInts, 4);
+            hzbInfo.CullingResultBuffer.SetData(hzbInfo.cullResults);
+        }
+           
         Log("StaticMeshBuffer Count:{0}", staticMeshRenders.Count);
         MgrHiz.Instance.StaticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, sizeof(float) * 6);
         MgrHiz.Instance.StaticMeshBuffer.SetData(staticMeshBounds);
@@ -169,29 +178,38 @@ public class HizInit : MonoBehaviour
     // 读取剔除结果
     private void LateUpdate()
     {
-        if (MgrHiz.Instance.readBackSuccess)
+        TotalFrameCount++;
+        bool success = false;
+        var frame = Time.frameCount;
+        for (int j= 1;j <= MgrHiz.HZBInfoCount; j++)
         {
-            int count = 0;
-            for (int i = 0; i < staticMeshRenders.Count; i++)
+            var hzbInfo = MgrHiz.Instance.hzbInfos[(frame - j + MgrHiz.HZBInfoCount) % MgrHiz.HZBInfoCount];
+            if(hzbInfo.readBackSuccess)
             {
-                int intIndex = i / IntBits;
-                int integer = MgrHiz.Instance.cullResults[intIndex];
-                int bit = i - intIndex * IntBits;
-                int mask = 1 << bit;
-                bool visible = (integer & mask) != 0;
-                if (!visible)
-                    count++;
-                staticMeshRenders[i].gameObject.SetActive(visible);
+                int count = 0;
+                for (int i = 0; i < staticMeshRenders.Count; i++)
+                {
+                    int intIndex = i / IntBits;
+                    int integer = hzbInfo.cullResults[intIndex];
+                    int bit = i - intIndex * IntBits;
+                    int mask = 1 << bit;
+                    bool visible = (integer & mask) != 0;
+                    if (!visible)
+                        count++;
+                    staticMeshRenders[i].gameObject.SetActive(visible);
+                }
+                success = true;
+                break;
             }
-
-            MgrHiz.Instance.readBackSuccess = false;
-            Log("共剔除了{0}个静态物体", count);
         }
-        else
+
+        if(!success)
         {
+            FailFrameCount++;
             Log("剔除结果读取失败 frameCount:{0}", Time.frameCount);
             for (int i = 0; i < staticMeshRenders.Count; i++)
                 staticMeshRenders[i].gameObject.SetActive(true);
+            return;
         }
     }
 
@@ -214,9 +232,13 @@ public class HizInit : MonoBehaviour
     public void OnDestroy()
     {
         MgrHiz.Instance.Enable = false;
-        MgrHiz.Instance.CullingResultBuffer?.Dispose();
         MgrHiz.Instance.StaticMeshBuffer?.Dispose();
         MgrHiz.Instance.DynamicMeshBuffer?.Dispose();
+
+        foreach (var hzbInfo in MgrHiz.Instance.hzbInfos)
+        {
+            hzbInfo.CullingResultBuffer?.Dispose();
+        }
 
         if (MgrHiz.Instance.latencyResults.Count > 0)
         {
@@ -225,5 +247,7 @@ public class HizInit : MonoBehaviour
             double avg = sum / MgrHiz.Instance.latencyResults.Count;
             Log("回读延迟平均值:{0}ms", avg);
         }
+
+        Log("回读失败率为:{0}", (double)FailFrameCount / TotalFrameCount);
     }
 }

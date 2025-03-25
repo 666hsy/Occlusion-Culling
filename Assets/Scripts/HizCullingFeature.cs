@@ -184,7 +184,6 @@ public class HizInfo
     public void CreatResource()
     {
         cullResultBackArray = new NativeArray<float>(64*64, Allocator.Persistent);
-        //hizResult = new Texture2D(64, 64, TextureFormat.RFloat, 0, true);
         hizResult = new RenderTexture(64, 64, 0, RenderTextureFormat.RFloat);
         hizResult.enableRandomWrite = true;
         hizResult.Create();
