@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using Debug = System.Diagnostics.Debug;
 
 //存放一些公共数据
 public class MgrHiz
@@ -144,9 +145,11 @@ public class MgrHiz
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.NumIntMasksID, numIntMasks);
         int igx = Mathf.CeilToInt((float)numIntMasks / 64.0f);
         igx = Mathf.Max(igx, 1);
+        if (hzbInfo.CullingResultBuffer == null)
+            UnityEngine.Debug.LogError("CullingResultBuffer is null");
         cmd.SetComputeBufferParam(GPUCullingCS, kernalInitialize, ShaderConstants.CullingResultBufferID, hzbInfo.CullingResultBuffer);
+
         cmd.DispatchCompute(GPUCullingCS, kernalInitialize, igx, 1, 1);
-        
         
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.MaxCountID, StaticMeshBuffer.count);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.StaticMeshBufferID, StaticMeshBuffer);

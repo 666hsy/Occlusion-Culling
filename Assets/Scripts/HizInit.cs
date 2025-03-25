@@ -69,9 +69,10 @@ public class HizInit : MonoBehaviour
     // 获取当前场景中静态物体的AABB包围盒数据并保存到贴图中
     private void Start()
     {
-        Application.targetFrameRate = -1;
+        Application.targetFrameRate = 60;
         Camera.main.depthTextureMode |= DepthTextureMode.Depth;
         renderers = FindObjectsOfType<OCMesh>();
+        Log("一共有{0}个OCMesh物体", renderers.Length);
         foreach (var meshRenderer in renderers)
         {
             if (meshRenderer.isStaticMesh)
@@ -145,9 +146,12 @@ public class HizInit : MonoBehaviour
                 dynamicMeshBounds[i].size=size;
             }
         }
-        
-        MgrHiz.Instance.DynamicMeshBuffer ??= new ComputeBuffer(dynamicMeshRenders.Count, sizeof(float) * 6);
-        MgrHiz.Instance.DynamicMeshBuffer.SetData(dynamicMeshBounds);
+
+        if (EnableDynamicCull)
+        {
+            MgrHiz.Instance.DynamicMeshBuffer ??= new ComputeBuffer(dynamicMeshRenders.Count, sizeof(float) * 6);
+            MgrHiz.Instance.DynamicMeshBuffer.SetData(dynamicMeshBounds);
+        }
     }
 
     private void InitMgrHzb()
@@ -199,6 +203,7 @@ public class HizInit : MonoBehaviour
                     staticMeshRenders[i].gameObject.SetActive(visible);
                 }
                 success = true;
+                Log("剔除结果读取成功,剔除数量:{0}", count);
                 break;
             }
         }
@@ -228,6 +233,11 @@ public class HizInit : MonoBehaviour
     public void SwitchDepth()
     {
         MgrHiz.Instance.enableDpth=!MgrHiz.Instance.enableDpth;
+    }
+
+    public void Quit()
+    {
+        Application.Quit();
     }
     public void OnDestroy()
     {
