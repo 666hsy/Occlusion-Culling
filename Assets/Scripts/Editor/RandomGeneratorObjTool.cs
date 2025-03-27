@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using log4net.Util;
-using UnityEngine.UIElements;
+using UnityEditor.SceneManagement;
 
 public class RandomGeneratorObjTool
 {
@@ -17,7 +16,7 @@ public class RandomGeneratorObjTool
             SphereParent = new GameObject("SphereParent");
         
         Vector2 xRange = new Vector2(-500f, 500);
-        Vector2 yRange = new Vector2(0f, 30f);
+        Vector2 yRange = new Vector2(0f, 40f);
         Vector2 zRange = new Vector2(-500f, 500f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
         for (int i = 0; i < StaticSphereCount; i++)
@@ -41,6 +40,7 @@ public class RandomGeneratorObjTool
             mesh.isStaticMesh = true;
 
         }
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Debug.Log($"生成了 {StaticSphereCount} 个静态球体");
     }
 
@@ -50,6 +50,7 @@ public class RandomGeneratorObjTool
         GameObject SphereParent = GameObject.Find("SphereParent");
         if(SphereParent!=null)
             GameObject.DestroyImmediate(SphereParent);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
     }
     
     [MenuItem("Tools/生成工具/生成动态立方体")]
@@ -85,6 +86,7 @@ public class RandomGeneratorObjTool
             var mesh = sphere.AddComponent<OCMesh>();
             mesh.isStaticMesh = false;
         }
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Debug.Log($"生成了 {DynamicCubeCount} 个动态立方体");
     }
     
@@ -93,6 +95,7 @@ public class RandomGeneratorObjTool
     {
         GameObject CubeParent = GameObject.Find("CubeParent");
         GameObject.DestroyImmediate(CubeParent);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
     }
 
 }

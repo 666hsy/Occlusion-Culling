@@ -4,14 +4,13 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using Debug = System.Diagnostics.Debug;
 
 //存放一些公共数据
 public class MgrHiz
 {
     private static MgrHiz instance;
 
-    public const int HZBInfoCount = 3;
+    public const int HZBInfoCount = 2;
 
     public HZBInfo[] hzbInfos = new HZBInfo[HZBInfoCount];
 
