@@ -10,9 +10,9 @@ public class MgrHiz
 {
     private static MgrHiz instance;
 
-    public const int HZBInfoCount = 2;
+    
 
-    public HZBInfo[] hzbInfos = new HZBInfo[HZBInfoCount];
+    public HZBInfo[] hzbInfos = new HZBInfo[CommonData.HZBInfoCount];
 
     private string generateDepthMipTag = "GenerateDepthMip";
     private string hiZCullingTag = "HiZCullingTag";
@@ -76,7 +76,7 @@ public class MgrHiz
         if (!Enable || renderingData.cameraData.camera.name == "SceneCamera" || renderingData.cameraData.camera.name == "Preview Camera")
             return;
 
-        var hizIndex = Time.frameCount % HZBInfoCount;
+        var hizIndex = Time.frameCount % CommonData.HZBInfoCount;
         var hzbInfo = hzbInfos[hizIndex];
 
         var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, false);
@@ -116,11 +116,11 @@ public class MgrHiz
             renderingData.cameraData.camera.name == "Preview Camera")
             return;
 
-        var hizIndex = Time.frameCount % HZBInfoCount;
+        var hizIndex = Time.frameCount % CommonData.HZBInfoCount;
         var hzbInfo = hzbInfos[hizIndex];
         hzbInfo.readBackSuccess = false;
 
-        var lastHzbInfo = hzbInfos[(hizIndex + HZBInfoCount - 1) % HZBInfoCount];
+        var lastHzbInfo = hzbInfos[(hizIndex + CommonData.HZBInfoCount - 1) % CommonData.HZBInfoCount];
 
         hzbInfo.EnsureResourceReady(renderingData);
 
@@ -208,7 +208,7 @@ public class MgrHiz
     {
         if (enableDpth)
         {
-            var hizIndex = Time.frameCount % HZBInfoCount;
+            var hizIndex = Time.frameCount % CommonData.HZBInfoCount;
             var hzbInfo = hzbInfos[hizIndex];
 
             var cmd = CommandBufferPool.Get("DepthMapPass");

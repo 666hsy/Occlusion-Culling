@@ -1,12 +1,48 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using UnityEngine.SceneManagement;
 
 public class RandomGeneratorObjTool
 {
     static int StaticSphereCount = 2000;
     
     static int DynamicCubeCount = 100;
+    
+    
+    static Vector2 xRange = new Vector2(-500f, 500);
+    static Vector2 yRange = new Vector2(0f, 40f);
+    static Vector2 zRange = new Vector2(-500f, 500f);
+
+    [MenuItem("Tools/生成工具/生成相机移动路点",false,1)]
+    public static void GenerateCameraMovePoint()
+    {
+        GameObject CameraPointParent = GameObject.Find("CameraPointParent");
+        if (CameraPointParent == null)
+            CameraPointParent = new GameObject("CameraPointParent");
+        for (int i = 0; i < CommonData.CameraMovePointCount; i++)
+        {
+            Vector3 pos = new Vector3(
+                Random.Range(xRange.x, xRange.y),
+                Random.Range(yRange.x, yRange.y),
+                Random.Range(zRange.x, zRange.y)
+            );
+            GameObject point = new GameObject("CameraPoint");
+            point.transform.position = pos;
+            point.transform.parent = CameraPointParent.transform;
+        }
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+    }
+    
+    [MenuItem("Tools/生成工具/删除相机移动路点",false,2)]
+    public static void DeleteCameraMovePoint()
+    {
+        GameObject CameraPointParent = GameObject.Find("CameraPointParent");
+        if(CameraPointParent!=null)
+            GameObject.DestroyImmediate(CameraPointParent);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+    }
+    
     // 在 Unity 菜单中添加入口
     [MenuItem("Tools/生成工具/随机创建静态小球")]
     public static void RandomGenerateSphere()

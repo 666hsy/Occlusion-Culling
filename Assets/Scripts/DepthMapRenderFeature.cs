@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
-using static HizCullingFeature;
 
 public class DepthMapRenderFeature : ScriptableRendererFeature
 {

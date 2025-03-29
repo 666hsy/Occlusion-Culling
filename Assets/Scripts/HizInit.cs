@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Unity.Collections;
 using UnityEngine;
 
 public class HizInit : MonoBehaviour
@@ -91,7 +90,6 @@ public class HizInit : MonoBehaviour
         enableHZB = true;
         InitStaticAABB();
         InitMgrHzb();
-        depthMaterial = new Material(Shader.Find("Unlit/Texture"));
     }
     
     void Update()
@@ -165,7 +163,7 @@ public class HizInit : MonoBehaviour
         int numInts = Mathf.CeilToInt((float)staticMeshRenders.Count / (float)IntBits) +
                       Mathf.CeilToInt((float)dynamicMeshRenders.Count / (float)IntBits);
 
-        for (int i = 0; i < MgrHiz.HZBInfoCount; i++)
+        for (int i = 0; i < CommonData.HZBInfoCount; i++)
         {
             MgrHiz.Instance.hzbInfos[i] = new HZBInfo();
             var hzbInfo = MgrHiz.Instance.hzbInfos[i];
@@ -185,9 +183,9 @@ public class HizInit : MonoBehaviour
         TotalFrameCount++;
         bool success = false;
         var frame = Time.frameCount;
-        for (int j= 1;j <= MgrHiz.HZBInfoCount; j++)
+        for (int j= 1;j <= CommonData.HZBInfoCount; j++)
         {
-            var hzbInfo = MgrHiz.Instance.hzbInfos[(frame - j + MgrHiz.HZBInfoCount) % MgrHiz.HZBInfoCount];
+            var hzbInfo = MgrHiz.Instance.hzbInfos[(frame - j + CommonData.HZBInfoCount) % CommonData.HZBInfoCount];
             if(hzbInfo.readBackSuccess)
             {
                 int count = 0;
@@ -203,7 +201,7 @@ public class HizInit : MonoBehaviour
                     staticMeshRenders[i].gameObject.SetActive(visible);
                 }
                 success = true;
-                Log("剔除结果读取成功,剔除数量:{0}", count);
+                // Log("剔除结果读取成功,剔除数量:{0}", count);
                 break;
             }
         }
@@ -211,10 +209,9 @@ public class HizInit : MonoBehaviour
         if(!success)
         {
             FailFrameCount++;
-            Log("剔除结果读取失败 frameCount:{0}", Time.frameCount);
+            Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
             for (int i = 0; i < staticMeshRenders.Count; i++)
                 staticMeshRenders[i].gameObject.SetActive(true);
-            return;
         }
     }
 
@@ -222,6 +219,11 @@ public class HizInit : MonoBehaviour
     {
         if (EnableLog)
             Debug.LogFormat(format, args);
+    }
+    private void Error(string format, params object[] args)
+    {
+        if (EnableLog)
+            Debug.LogErrorFormat(format, args);
     }
 
     public void SwitchHZB()
@@ -257,7 +259,6 @@ public class HizInit : MonoBehaviour
             double avg = sum / MgrHiz.Instance.latencyResults.Count;
             Log("回读延迟平均值:{0}ms", avg);
         }
-
-        Log("回读失败率为:{0}", (double)FailFrameCount / TotalFrameCount);
+        Log("回读失败帧数:{0}，总帧数:{1}，回读失败率：{2}", FailFrameCount, TotalFrameCount, (double)FailFrameCount / TotalFrameCount);
     }
 }
