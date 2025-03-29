@@ -5,6 +5,11 @@ public class HizCulling : ScriptableRendererFeature
 {
     class HizCullingPass : ScriptableRenderPass
     {
+        public HizCullingPass()
+        {
+            isComputePass = true;
+            base.profilingSampler = new ProfilingSampler(nameof(HizCullingPass));
+        }
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
             MgrHiz.Instance.ExecuteCull(context,ref renderingData);
