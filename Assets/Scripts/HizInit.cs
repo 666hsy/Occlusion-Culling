@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class HizInit : MonoBehaviour
@@ -15,6 +16,8 @@ public class HizInit : MonoBehaviour
     private List<MeshRenderer> staticMeshRenders = new List<MeshRenderer>();
     private List<MeshRenderer> dynamicMeshRenders = new List<MeshRenderer>();
     private List<Vector3> targetPositions=new List<Vector3>();
+    
+    private List<double> cullingRate=new List<double>();
         
     private BoundStruct[] staticMeshBounds;
     private BoundStruct[] dynamicMeshBounds;
@@ -85,7 +88,7 @@ public class HizInit : MonoBehaviour
         
         staticMeshBounds = new BoundStruct[staticMeshRenders.Count];
         dynamicMeshBounds = new BoundStruct[dynamicMeshRenders.Count];
-        Log("共有{0}个静态物体 {0}个动态物体", staticMeshBounds.Length, dynamicMeshBounds.Length);
+        Log("共有{0}个静态物体 {1}个动态物体 循环缓冲大小:{2}", staticMeshBounds.Length, dynamicMeshBounds.Length,CommonData.HZBInfoCount);
         
         enableHZB = true;
         InitStaticAABB();
@@ -201,6 +204,7 @@ public class HizInit : MonoBehaviour
                     staticMeshRenders[i].gameObject.SetActive(visible);
                 }
                 success = true;
+                cullingRate.Add(count/(float)staticMeshRenders.Count);
                 // Log("剔除结果读取成功,剔除数量:{0}", count);
                 break;
             }
@@ -210,6 +214,7 @@ public class HizInit : MonoBehaviour
         {
             FailFrameCount++;
             Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
+            cullingRate.Add(0);
             for (int i = 0; i < staticMeshRenders.Count; i++)
                 staticMeshRenders[i].gameObject.SetActive(true);
         }
@@ -260,5 +265,6 @@ public class HizInit : MonoBehaviour
             Log("回读延迟平均值:{0}ms", avg);
         }
         Log("回读失败帧数:{0}，总帧数:{1}，回读失败率：{2}", FailFrameCount, TotalFrameCount, (double)FailFrameCount / TotalFrameCount);
+        Log("剔除率：{0}", cullingRate.Average());
     }
 }

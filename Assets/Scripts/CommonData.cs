@@ -5,4 +5,7 @@ public static class CommonData
     
     //循环缓冲大小
     public static int HZBInfoCount = 3;
+    
+    //静态小球数量
+    public static int StaticSphereCount = 10000;
 }

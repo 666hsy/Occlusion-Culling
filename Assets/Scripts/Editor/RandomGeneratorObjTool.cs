@@ -5,10 +5,7 @@ using UnityEngine.SceneManagement;
 
 public class RandomGeneratorObjTool
 {
-    static int StaticSphereCount = 2000;
-    
     static int DynamicCubeCount = 100;
-    
     
     static Vector2 xRange = new Vector2(-500f, 500);
     static Vector2 yRange = new Vector2(0f, 40f);
@@ -44,7 +41,7 @@ public class RandomGeneratorObjTool
     }
     
     // 在 Unity 菜单中添加入口
-    [MenuItem("Tools/生成工具/随机创建静态小球")]
+    [MenuItem("Tools/生成工具/随机创建静态小球",false,3)]
     public static void RandomGenerateSphere()
     {
         GameObject SphereParent = GameObject.Find("SphereParent");
@@ -55,7 +52,7 @@ public class RandomGeneratorObjTool
         Vector2 yRange = new Vector2(0f, 40f);
         Vector2 zRange = new Vector2(-500f, 500f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
-        for (int i = 0; i < StaticSphereCount; i++)
+        for (int i = 0; i < CommonData.StaticSphereCount; i++)
         {
             // 随机生成位置
             Vector3 pos = new Vector3(
@@ -77,10 +74,10 @@ public class RandomGeneratorObjTool
 
         }
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-        Debug.Log($"生成了 {StaticSphereCount} 个静态球体");
+        Debug.Log($"生成了 {CommonData.StaticSphereCount} 个静态球体");
     }
 
-    [MenuItem("Tools/生成工具/删除所有球")]
+    [MenuItem("Tools/生成工具/删除所有球",false,4)]
     public static void DeleteAllSphere()
     {
         GameObject SphereParent = GameObject.Find("SphereParent");
