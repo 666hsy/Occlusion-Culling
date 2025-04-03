@@ -2,5 +2,5 @@ using UnityEngine;
 
 public class OCMesh : MonoBehaviour
 {
-    public bool isStaticMesh = false;
+    public bool isStaticMesh = true;
 }
