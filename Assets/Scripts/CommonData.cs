@@ -7,5 +7,8 @@ public static class CommonData
     public static int HZBInfoCount = 3;
     
     //静态小球数量
-    public static int StaticSphereCount = 10000;
+    public static int StaticSphereCount = 1000;
+    
+    //动态立方体的数量
+    public static int DynamicCubeCount = 200;
 }

@@ -9,9 +9,7 @@ using UnityEngine.Rendering.Universal;
 public class MgrHiz
 {
     private static MgrHiz instance;
-
     
-
     public HZBInfo[] hzbInfos = new HZBInfo[CommonData.HZBInfoCount];
 
     private string generateDepthMipTag = "GenerateDepthMip";
@@ -21,10 +19,10 @@ public class MgrHiz
 
     public ComputeShader GenerateMipmapCS;     //生成Mip的CS
     public ComputeShader GPUCullingCS;         //GPU剔除CS
-    
-    public ComputeBuffer StaticMeshBuffer;
 
-    public ComputeBuffer DynamicMeshBuffer;
+    public ComputeBuffer MeshBoundBuffer;
+
+    // public ComputeBuffer DynamicMeshBuffer;
 
     public bool Enable = false;
     const int IntBits = 32;
@@ -57,7 +55,7 @@ public class MgrHiz
         public static readonly int HzbDestTexID = Shader.PropertyToID("DestTex");
         public static readonly int DestTetSizeID = Shader.PropertyToID("DepthRTSize");
         public static readonly int MaxCountID = Shader.PropertyToID("MaxCount");
-        public static readonly int StaticMeshBufferID = Shader.PropertyToID("StaticBoundBuffer");
+        public static readonly int MeshBoundBufferID = Shader.PropertyToID("MeshBoundBuffer");
         public static readonly int CullingResultBufferID = Shader.PropertyToID("CullResult");
         public static readonly int CameraFrustumPlanes = Shader.PropertyToID("CameraFrustumPlanes");
         public static readonly int CameraMatrixVP = Shader.PropertyToID("CameraMatrixVP");
@@ -133,12 +131,8 @@ public class MgrHiz
         }
 
         int numIntMasks = 0;
-
-        if (DynamicMeshBuffer != null)
-            numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits) +
-                          Mathf.CeilToInt((float)DynamicMeshBuffer.count / (float)IntBits);
-        else
-            numIntMasks = Mathf.CeilToInt((float)StaticMeshBuffer.count / (float)IntBits);
+        
+        numIntMasks = Mathf.CeilToInt((float)MeshBoundBuffer.count / (float)IntBits);
 
         numIntMasks = Mathf.Max(numIntMasks, 1);
         cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.NumIntMasksID, numIntMasks);
@@ -150,24 +144,23 @@ public class MgrHiz
 
         cmd.DispatchCompute(GPUCullingCS, kernalInitialize, igx, 1, 1);
         
-        cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.MaxCountID, StaticMeshBuffer.count);
-        cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.StaticMeshBufferID, StaticMeshBuffer);
+        cmd.SetComputeIntParam(GPUCullingCS, ShaderConstants.MaxCountID, MeshBoundBuffer.count);
+        cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.MeshBoundBufferID, MeshBoundBuffer);
         cmd.SetComputeBufferParam(GPUCullingCS, 0, ShaderConstants.CullingResultBufferID, hzbInfo.CullingResultBuffer);
 
         UpdateCameraFrustumPlanes(hzbInfo, camera);
         cmd.SetComputeMatrixParam(GPUCullingCS, ShaderConstants.CameraMatrixVP, lastHzbInfo.VpMatrix);
         cmd.SetComputeTextureParam(GPUCullingCS, 0, ShaderConstants.HizDepthMap, hzbInfo.hzbDepthRT);
         cmd.SetComputeVectorParam(GPUCullingCS, ShaderConstants.HizDepthMapSize, new Vector3(hzbInfo.hzbDepthRT.width, hzbInfo.hzbDepthRT.height, hzbInfo.hzbDepthRT.mipmapCount));
+
+        cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(MeshBoundBuffer.count / 64f), 1, 1);
         
-        cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(StaticMeshBuffer.count / 64f), 1, 1);
-
-        // 记录发起请求的时间戳（以Stopwatch的Ticks为单位）
-        long requestTimestamp = stopwatch.ElapsedTicks;
-        pendingRequestTimestamps.Enqueue(requestTimestamp);
-
         cmd.RequestAsyncReadback(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
+        // 记录发起请求的时间戳（以Stopwatch的Ticks为单位）
+        long requestTimestamp = stopwatch.ElapsedTicks;
+        pendingRequestTimestamps.Enqueue(requestTimestamp);
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)

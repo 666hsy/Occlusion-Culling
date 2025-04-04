@@ -15,7 +15,7 @@ SamplerState sampler_HizDepthMap;
 
 float3 HizDepthMapSize;
 RWStructuredBuffer<int> CullResult;
-RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
+RWStructuredBuffer<BoundStruct> MeshBoundBuffer;
 
 uniform float4 CameraFrustumPlanes[6];  //视锥体的6个面
 int NumIntMasks;
@@ -131,7 +131,7 @@ bool HZBCulling(BoundStruct bounds)
 void GPUCulling (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= MaxCount) return;
-    if (FrustumCull(CameraFrustumPlanes, StaticBoundBuffer[id.x]) || HZBCulling(StaticBoundBuffer[id.x]))
+    if (FrustumCull(CameraFrustumPlanes, MeshBoundBuffer[id.x]) || HZBCulling(MeshBoundBuffer[id.x]))
     {
         
     }

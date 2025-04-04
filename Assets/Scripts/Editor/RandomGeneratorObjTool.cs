@@ -1,11 +1,9 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
-using UnityEngine.SceneManagement;
 
 public class RandomGeneratorObjTool
 {
-    static int DynamicCubeCount = 100;
     
     static Vector2 xRange = new Vector2(-500f, 500);
     static Vector2 yRange = new Vector2(0f, 40f);
@@ -86,7 +84,7 @@ public class RandomGeneratorObjTool
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
     }
     
-    [MenuItem("Tools/生成工具/生成动态立方体")]
+    [MenuItem("Tools/生成工具/生成动态立方体",false,5)]
     public static void RandomGenerateCube()
     {
         GameObject CubeParent = GameObject.Find("CubeParent");
@@ -97,7 +95,7 @@ public class RandomGeneratorObjTool
         Vector2 yRange = new Vector2(0f, 30f);
         Vector2 zRange = new Vector2(-500f, 500f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
-        for (int i = 0; i < DynamicCubeCount; i++)
+        for (int i = 0; i < CommonData.DynamicCubeCount; i++)
         {
             // 随机生成位置
             Vector3 pos = new Vector3(
@@ -120,10 +118,10 @@ public class RandomGeneratorObjTool
             mesh.isStaticMesh = false;
         }
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-        Debug.Log($"生成了 {DynamicCubeCount} 个动态立方体");
+        Debug.Log($"生成了 {CommonData.DynamicCubeCount} 个动态立方体");
     }
     
-    [MenuItem("Tools/生成工具/删除所有立方体")]
+    [MenuItem("Tools/生成工具/删除所有立方体",false,6)]
     public static void DeleteAllCube()
     {
         GameObject CubeParent = GameObject.Find("CubeParent");

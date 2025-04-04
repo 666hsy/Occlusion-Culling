@@ -136,22 +136,23 @@ public class HizInit : MonoBehaviour
     
     private void UpdateDynamicAABB()
     {
-        for (int i = 0; i < dynamicMeshRenders.Count; i++)
-        {
-            if (dynamicMeshRenders[i] != null)
-            {
-                Bounds aabb = dynamicMeshRenders[i].bounds;
-                var center = aabb.center;
-                var size = aabb.size;
-                dynamicMeshBounds[i].center=center;
-                dynamicMeshBounds[i].size=size;
-            }
-        }
-
         if (EnableDynamicCull)
         {
-            MgrHiz.Instance.DynamicMeshBuffer ??= new ComputeBuffer(dynamicMeshRenders.Count, sizeof(float) * 6);
-            MgrHiz.Instance.DynamicMeshBuffer.SetData(dynamicMeshBounds);
+            for (int i = 0; i < dynamicMeshRenders.Count; i++)
+            {
+                if (dynamicMeshRenders[i] != null)
+                {
+                    Bounds aabb = dynamicMeshRenders[i].bounds;
+                    var center = aabb.center;
+                    var size = aabb.size;
+                    dynamicMeshBounds[i].center=center;
+                    dynamicMeshBounds[i].size=size;
+                }
+            }
+
+            MgrHiz.Instance.MeshBoundBuffer.SetData(dynamicMeshBounds, 0, staticMeshBounds.Length,
+                dynamicMeshBounds.Length);
+            // MgrHiz.Instance.DynamicMeshBuffer.SetData(dynamicMeshBounds);
         }
     }
 
@@ -176,8 +177,12 @@ public class HizInit : MonoBehaviour
         }
            
         Log("StaticMeshBuffer Count:{0}", staticMeshRenders.Count);
-        MgrHiz.Instance.StaticMeshBuffer = new ComputeBuffer(staticMeshRenders.Count, sizeof(float) * 6);
-        MgrHiz.Instance.StaticMeshBuffer.SetData(staticMeshBounds);
+        if (EnableDynamicCull)
+            MgrHiz.Instance.MeshBoundBuffer =
+                new ComputeBuffer(staticMeshRenders.Count + dynamicMeshRenders.Count, sizeof(float) * 6);
+        else
+            MgrHiz.Instance.MeshBoundBuffer = new ComputeBuffer(staticMeshRenders.Count, sizeof(float) * 6);
+        MgrHiz.Instance.MeshBoundBuffer.SetData(staticMeshBounds, 0, 0, staticMeshBounds.Length);
     }
 
     // 读取剔除结果
@@ -191,7 +196,7 @@ public class HizInit : MonoBehaviour
             var hzbInfo = MgrHiz.Instance.hzbInfos[(frame - j + CommonData.HZBInfoCount) % CommonData.HZBInfoCount];
             if(hzbInfo.readBackSuccess)
             {
-                int count = 0;
+                int StaticCount = 0,DynamicCount = 0;
                 for (int i = 0; i < staticMeshRenders.Count; i++)
                 {
                     int intIndex = i / IntBits;
@@ -200,12 +205,24 @@ public class HizInit : MonoBehaviour
                     int mask = 1 << bit;
                     bool visible = (integer & mask) != 0;
                     if (!visible)
-                        count++;
-                    staticMeshRenders[i].gameObject.SetActive(visible);
+                        StaticCount++;
+                    staticMeshRenders[i].enabled = true;
+                }
+                for(int i=staticMeshRenders.Count;i<staticMeshRenders.Count+dynamicMeshRenders.Count;i++)
+                {
+                    int intIndex = i / IntBits;
+                    int integer = hzbInfo.cullResults[intIndex];
+                    int bit = i - intIndex * IntBits;
+                    int mask = 1 << bit;
+                    bool visible = (integer & mask) != 0;
+                    if (!visible)
+                        DynamicCount++;
+                    dynamicMeshRenders[i - staticMeshRenders.Count].enabled = visible;
                 }
                 success = true;
-                cullingRate.Add(count/(float)staticMeshRenders.Count);
-                // Log("剔除结果读取成功,剔除数量:{0}", count);
+                cullingRate.Add((StaticCount + DynamicCount) /
+                                (float)(staticMeshRenders.Count + dynamicMeshRenders.Count));
+                Log("剔除结果读取成功,剔除静态物体:{0}个，动态物体:{1}个", StaticCount, DynamicCount);
                 break;
             }
         }
@@ -216,7 +233,9 @@ public class HizInit : MonoBehaviour
             Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
             cullingRate.Add(0);
             for (int i = 0; i < staticMeshRenders.Count; i++)
-                staticMeshRenders[i].gameObject.SetActive(true);
+                staticMeshRenders[i].enabled= true;
+            for(int i=0;i<dynamicMeshRenders.Count;i++)
+                dynamicMeshRenders[i].enabled = true;
         }
     }
 
@@ -249,8 +268,7 @@ public class HizInit : MonoBehaviour
     public void OnDestroy()
     {
         MgrHiz.Instance.Enable = false;
-        MgrHiz.Instance.StaticMeshBuffer?.Dispose();
-        MgrHiz.Instance.DynamicMeshBuffer?.Dispose();
+        MgrHiz.Instance.MeshBoundBuffer?.Dispose();
 
         foreach (var hzbInfo in MgrHiz.Instance.hzbInfos)
         {
