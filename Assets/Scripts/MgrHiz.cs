@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using Debug = UnityEngine.Debug;
 
 //存放一些公共数据
 public class MgrHiz
@@ -51,9 +52,13 @@ public class MgrHiz
     
     private class ShaderConstants
     {
-        public static readonly int HzbSourceTexID = Shader.PropertyToID("SourceTex");
-        public static readonly int HzbDestTexID = Shader.PropertyToID("DestTex");
-        public static readonly int DestTetSizeID = Shader.PropertyToID("DepthRTSize");
+        public static readonly int HizMapMip0 = Shader.PropertyToID("HIZ_MAP_Mip0");
+        public static readonly int HizMapMip1 = Shader.PropertyToID("HIZ_MAP_Mip1");
+        public static readonly int HizMapMip2 = Shader.PropertyToID("HIZ_MAP_Mip2");
+        public static readonly int HizMapMip3 = Shader.PropertyToID("HIZ_MAP_Mip3");
+        public static readonly int InputDepthMapSizeID = Shader.PropertyToID("inputDepthMapSize");
+        public static readonly int InputDepthMap = Shader.PropertyToID("inputDepthMap");
+        
         public static readonly int MaxCountID = Shader.PropertyToID("MaxCount");
         public static readonly int MeshBoundBufferID = Shader.PropertyToID("MeshBoundBuffer");
         public static readonly int CullingResultBufferID = Shader.PropertyToID("CullResult");
@@ -83,19 +88,41 @@ public class MgrHiz
         hzbInfo.EnsureResourceReady(renderingData);
         
         CommandBuffer cmd = CommandBufferPool.Get(generateDepthMipTag);
-        cmd.Blit(Texture2D.blackTexture, hzbInfo.hzbDepthRT, hzbInfo.genDepthRTMat);
-        
-        int mipLevel = 0, w = hzbInfo.hzbDepthRT.width, h = hzbInfo.hzbDepthRT.height;
+
+        int mipLevel = 0,
+            w = hzbInfo.hzbDepthRT.width,
+            h = hzbInfo.hzbDepthRT.height,
+            width = renderingData.cameraData.camera.pixelWidth,
+            height = renderingData.cameraData.camera.pixelHeight;
         do
         {
-            mipLevel++;
-            w = Mathf.Max(1, w / 2);    //要生成的Mip的宽
-            h = Mathf.Max(1, h / 2);    //要生成的Mip的高
-            cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HzbSourceTexID, hzbInfo.hzbDepthRT, mipLevel - 1);
-            cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HzbDestTexID, hzbInfo.hzbDepthRT, mipLevel);
-            cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.DestTetSizeID, new Vector2(w, h));
-            
-            cmd.DispatchCompute(GenerateMipmapCS, 0, Mathf.Max(1, w / 8), Mathf.Max(1, h / 8), 1);
+            if (mipLevel == 0)
+            {
+                cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
+                    new Vector4(width, height, w, h));
+            }
+            else
+            {
+                cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
+                    new Vector4(w, h, w, h));
+                cmd.SetComputeTextureParam(GenerateMipmapCS, 1, ShaderConstants.InputDepthMap,
+                    hzbInfo.hzbDepthRT, mipLevel - 1);
+            }
+            cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip0, hzbInfo.hzbDepthRT,
+                mipLevel);
+            cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip1, hzbInfo.hzbDepthRT,
+                mipLevel + 1);
+            cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip2, hzbInfo.hzbDepthRT,
+                mipLevel + 2);
+            cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip3, hzbInfo.hzbDepthRT,
+                mipLevel + 3);
+            mipLevel += 4;
+            w /= 16;
+            h /= 16;
+            if (mipLevel == 0)
+                cmd.DispatchCompute(GenerateMipmapCS, 0, Mathf.Max(1, width / 32), Mathf.Max(1, height / 16), 1);
+            else
+                cmd.DispatchCompute(GenerateMipmapCS, 1, Mathf.Max(1, width / 32), Mathf.Max(1, height / 16), 1);
         } while (w > 1 || h > 1);
         
         context.ExecuteCommandBuffer(cmd);
@@ -155,12 +182,40 @@ public class MgrHiz
 
         cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(MeshBoundBuffer.count / 64f), 1, 1);
         
-        cmd.RequestAsyncReadback(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
-        context.ExecuteCommandBuffer(cmd);
-        CommandBufferPool.Release(cmd);
+        // cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(StaticMeshBuffer.count / 64f), 1, 1);
+        
+        // cmd.RequestAsyncReadback(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
+        int cnt1 = 0, cnt2 = 0;
+        for(int i=0;i<hzbInfo.cullResults.Length;i++)
+        {
+            if (hzbInfo.cullResults[i] != 0)
+            {
+                cnt1++;
+            }
+        }
+        
         // 记录发起请求的时间戳（以Stopwatch的Ticks为单位）
         long requestTimestamp = stopwatch.ElapsedTicks;
         pendingRequestTimestamps.Enqueue(requestTimestamp);
+        context.ExecuteCommandBuffer(cmd);
+        
+        hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
+        hzbInfo.readBackSuccess = true;
+        for(int i=0;i<hzbInfo.cullResults.Length;i++)
+        {
+            if (hzbInfo.cullResults[i] != 0)
+            {
+                cnt2++;
+            }
+        }
+        long callbackTimestamp = stopwatch.ElapsedTicks;
+        long latencyTicks = callbackTimestamp - pendingRequestTimestamps.Dequeue();
+        Debug.Log("拿到结果：cnt1:" + cnt1 + "  cnt2:" + cnt2);
+        // 转换为毫秒（Stopwatch.Frequency单位为Hz，1秒=1e7 ticks）
+        double latencyMs = (latencyTicks * 1000.0) / Stopwatch.Frequency;
+        latencyResults.Add(latencyMs);
+
+        CommandBufferPool.Release(cmd);
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)

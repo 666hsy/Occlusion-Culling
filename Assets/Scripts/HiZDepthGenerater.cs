@@ -23,6 +23,7 @@ public class HiZDepthGenerater : ScriptableRendererFeature
     }
 
     HiZDepthGeneraterPass hiZDepthGeneraterPass;
+    RenderTargetIdentifier SourceZTexture;
 
     /// <inheritdoc/>
     public override void Create()
@@ -35,6 +36,9 @@ public class HiZDepthGenerater : ScriptableRendererFeature
     // This method is called when setting up the renderer once per-camera.
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+        var universalRenderer = renderer as UniversalRenderer;
+        if(universalRenderer != null)
+            SourceZTexture = universalRenderer.m_DepthTexture;
         renderer.EnqueuePass(hiZDepthGeneraterPass);
     }
 }
