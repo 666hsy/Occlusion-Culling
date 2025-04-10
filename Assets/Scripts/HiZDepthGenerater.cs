@@ -1,3 +1,5 @@
+using System;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -6,24 +8,35 @@ public class HiZDepthGenerater : ScriptableRendererFeature
 {
     class HiZDepthGeneraterPass : ScriptableRenderPass
     {
-
-        // Here you can implement the rendering logic.
-        // Use <c>ScriptableRenderContext</c> to issue drawing commands or execute command buffers
-        // https://docs.unity3d.com/ScriptReference/Rendering.ScriptableRenderContext.html
-        // You don't have to call ScriptableRenderContext.submit, the render pipeline will call it at specific points in the pipeline.
+        RenderTargetIdentifier SourceZTexture;
+        RenderTextureDescriptor SourceZDescriptor;
+        private int m_NumMips = 0;
         public HiZDepthGeneraterPass()
         {
             isComputePass = true;
             base.profilingSampler = new ProfilingSampler(nameof(HiZDepthGeneraterPass));
         }
+
+        public void Init(ScriptableRenderer renderer, ref RenderingData renderingData)
+        {
+            var universalRenderer = renderer as UniversalRenderer;
+            if (universalRenderer != null)
+            {
+                SourceZTexture = universalRenderer.m_DepthTexture;
+                SourceZDescriptor = renderingData.cameraData.cameraTargetDescriptor;
+                int numMipsX = Math.Max(Mathf.CeilToInt(Mathf.Log((float)SourceZDescriptor.width) / Mathf.Log(2.0f)) - 1, 1);
+                int numMipsY = Math.Max(Mathf.CeilToInt(Mathf.Log((float)SourceZDescriptor.height) / Mathf.Log(2.0f)) - 1, 1);
+                m_NumMips = Math.Max(numMipsX, numMipsY);
+            }
+        }
+        
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
-            MgrHiz.Instance.GenerateDepthMip(context,ref renderingData);
+            MgrHiz.Instance.GenerateDepthMip(context,ref renderingData,m_NumMips,SourceZTexture,SourceZDescriptor);
         }
     }
 
     HiZDepthGeneraterPass hiZDepthGeneraterPass;
-    RenderTargetIdentifier SourceZTexture;
 
     /// <inheritdoc/>
     public override void Create()
@@ -36,9 +49,7 @@ public class HiZDepthGenerater : ScriptableRendererFeature
     // This method is called when setting up the renderer once per-camera.
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        var universalRenderer = renderer as UniversalRenderer;
-        if(universalRenderer != null)
-            SourceZTexture = universalRenderer.m_DepthTexture;
+        hiZDepthGeneraterPass.Init(renderer, ref renderingData);
         renderer.EnqueuePass(hiZDepthGeneraterPass);
     }
 }
