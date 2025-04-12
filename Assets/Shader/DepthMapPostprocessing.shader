@@ -33,7 +33,11 @@ Shader "Custom/URP/DepthMap"
                 float4 vertex : SV_POSITION;
             };
 
-            sampler2D _MainTex;
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
+
+            TEXTURE2D_FLOAT(_CameraDepthTexture);
+            SAMPLER(sampler_CameraDepthTexture);
 
             v2f vert (appdata v)
             {
@@ -45,7 +49,8 @@ Shader "Custom/URP/DepthMap"
 
             float4 frag (v2f i) : SV_Target
             {
-                return tex2D(_MainTex, i.uv);
+                return SAMPLE_TEXTURE2D_LOD(_MainTex,sampler_MainTex, i.uv,0);
+                // return _MainTex.Load(uint3(i.uv, 0));
             }
             ENDHLSL
         }

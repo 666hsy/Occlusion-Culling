@@ -1,5 +1,3 @@
-using System;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -14,25 +12,13 @@ public class HiZDepthGenerater : ScriptableRendererFeature
         public HiZDepthGeneraterPass()
         {
             isComputePass = true;
+            MgrHiz.Instance.InitGenerateDepthMip();
             base.profilingSampler = new ProfilingSampler(nameof(HiZDepthGeneraterPass));
-        }
-
-        public void Init(ScriptableRenderer renderer, ref RenderingData renderingData)
-        {
-            var universalRenderer = renderer as UniversalRenderer;
-            if (universalRenderer != null)
-            {
-                SourceZTexture = universalRenderer.m_DepthTexture;
-                SourceZDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-                int numMipsX = Math.Max(Mathf.CeilToInt(Mathf.Log((float)SourceZDescriptor.width) / Mathf.Log(2.0f)) - 1, 1);
-                int numMipsY = Math.Max(Mathf.CeilToInt(Mathf.Log((float)SourceZDescriptor.height) / Mathf.Log(2.0f)) - 1, 1);
-                m_NumMips = Math.Max(numMipsX, numMipsY);
-            }
         }
         
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
-            MgrHiz.Instance.GenerateDepthMip(context,ref renderingData,m_NumMips,SourceZTexture,SourceZDescriptor);
+            MgrHiz.Instance.GenerateDepthMip(context, ref renderingData);
         }
     }
 
@@ -49,7 +35,10 @@ public class HiZDepthGenerater : ScriptableRendererFeature
     // This method is called when setting up the renderer once per-camera.
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        hiZDepthGeneraterPass.Init(renderer, ref renderingData);
+        if (renderingData.cameraData.isSceneViewCamera || renderingData.cameraData.isPreviewCamera ||
+            renderingData.cameraData.camera.name != "Main Camera")
+            return;
+        
         renderer.EnqueuePass(hiZDepthGeneraterPass);
     }
 }

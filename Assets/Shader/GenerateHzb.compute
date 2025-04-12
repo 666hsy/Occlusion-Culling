@@ -1,16 +1,21 @@
 #pragma kernel BuildHizMap
 
 #pragma multi_compile DIM_MIP_LEVEL_COUNT_1 DIM_MIP_LEVEL_COUNT_2 DIM_MIP_LEVEL_COUNT_4
+#pragma multi_compile _ UNITY_REVERSED_Z
+
+// #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+#pragma enable_d3d11_debug_symbols
 
 Texture2D<float> inputDepthMap; //2488 *1080
 uniform float4 inputDepthMapSize; //(2488 ,1080, 4096, 2048)
+float2 DepthRTSize;
 
 groupshared float hiz_0[32][16];
 groupshared float hiz_1[16][8];
 groupshared float hiz_2[8][4];
 groupshared float hiz_3[4][2];
 
-RWTexture2D<float> HIZ_MAP_Mip0;//
+RWTexture2D<float> HIZ_MAP_Mip0;    //先扩展再减半格式的
 RWTexture2D<float> HIZ_MAP_Mip1;
 RWTexture2D<float> HIZ_MAP_Mip2;
 RWTexture2D<float> HIZ_MAP_Mip3;
@@ -23,7 +28,6 @@ float GetHizDepth2X2(float depth0, float depth1, float depth2, float depth3)
     return max(max(depth0, depth1), max(depth2, depth3));
     #endif
 }
-
 
 [numthreads(32, 16, 1)]
 void BuildHizMap(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 idInGroup : SV_GroupThreadID)

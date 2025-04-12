@@ -8,6 +8,7 @@ public class HizCulling : ScriptableRendererFeature
         public HizCullingPass()
         {
             isComputePass = true;
+            MgrHiz.Instance.InitHizCulling();
             base.profilingSampler = new ProfilingSampler(nameof(HizCullingPass));
         }
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)

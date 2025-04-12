@@ -206,7 +206,7 @@ public class HizInit : MonoBehaviour
                     bool visible = (integer & mask) != 0;
                     if (!visible)
                         StaticCount++;
-                    staticMeshRenders[i].enabled = true;
+                    staticMeshRenders[i].enabled = visible;
                 }
                 for(int i=staticMeshRenders.Count;i<staticMeshRenders.Count+dynamicMeshRenders.Count;i++)
                 {
@@ -232,10 +232,10 @@ public class HizInit : MonoBehaviour
             FailFrameCount++;
             Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
             cullingRate.Add(0);
-            for (int i = 0; i < staticMeshRenders.Count; i++)
-                staticMeshRenders[i].enabled= true;
-            for(int i=0;i<dynamicMeshRenders.Count;i++)
-                dynamicMeshRenders[i].enabled = true;
+            // for (int i = 0; i < staticMeshRenders.Count; i++)
+            //     staticMeshRenders[i].enabled= true;
+            // for(int i=0;i<dynamicMeshRenders.Count;i++)
+            //     dynamicMeshRenders[i].enabled = true;
         }
     }
 
