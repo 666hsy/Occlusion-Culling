@@ -9,6 +9,7 @@
 Texture2D<float> inputDepthMap; //2488 *1080
 uniform float4 inputDepthMapSize; //(2488 ,1080, 4096, 2048)
 float2 DepthRTSize;
+int mipCount;
 
 groupshared float hiz_0[32][16];
 groupshared float hiz_1[16][8];
@@ -56,6 +57,9 @@ void BuildHizMap(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uin
 
     hiz_1[pix.x][pix.y] = depth;//16x8
     HIZ_MAP_Mip0[id.xy>>1] = depth; //2048x1024
+
+    if (mipCount == 1)
+        return;
     
     GroupMemoryBarrierWithGroupSync();
     //step3: hiz_pang(2048*1024) -> hiz_ping(1024*512) -> output HIZ_MAP_Mip1;
@@ -69,6 +73,9 @@ void BuildHizMap(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uin
 
     hiz_2[pix.x][pix.y] = depth;//8x4
     HIZ_MAP_Mip1[id.xy >>2] = depth; //1024x512
+    
+    if (mipCount == 2)
+        return;
     
     GroupMemoryBarrierWithGroupSync();
     //step3: hiz_ping(1024x512) -> hiz_pang(512x256) -> output HIZ_MAP_Mip2;

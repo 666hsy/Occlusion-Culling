@@ -6,8 +6,6 @@ public class HiZDepthGenerater : ScriptableRendererFeature
 {
     class HiZDepthGeneraterPass : ScriptableRenderPass
     {
-        RenderTargetIdentifier SourceZTexture;
-        RenderTextureDescriptor SourceZDescriptor;
         private int m_NumMips = 0;
         public HiZDepthGeneraterPass()
         {

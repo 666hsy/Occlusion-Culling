@@ -41,16 +41,16 @@ public class MobileCameraControl : MonoBehaviour
 
     void Update()
     {
-        // if (isMoving)
-        // {
-        //     // 移动摄像机到目标点
-        //     MoveToTargetPoint();
-        // }
-        // else
-        // {
-        //     // 摄像机到达目标点后进行旋转
-        //     RotateAtTargetPoint();
-        // }
+        if (isMoving)
+        {
+            // 移动摄像机到目标点
+            MoveToTargetPoint();
+        }
+        else
+        {
+            // 摄像机到达目标点后进行旋转
+            RotateAtTargetPoint();
+        }
         
         // 处理触摸输入
         if (Input.touchCount == 1) // 单点触摸控制旋转

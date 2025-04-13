@@ -62,7 +62,7 @@ public class MgrHiz
         public static readonly GlobalKeyword DIM_MIP_LEVEL_COUNT_1 = GlobalKeyword.Create("DIM_MIP_LEVEL_COUNT_1");
         public static readonly GlobalKeyword DIM_MIP_LEVEL_COUNT_2 = GlobalKeyword.Create("DIM_MIP_LEVEL_COUNT_2");
         public static readonly GlobalKeyword DIM_MIP_LEVEL_COUNT_4 = GlobalKeyword.Create("DIM_MIP_LEVEL_COUNT_4");
-        public static readonly GlobalKeyword SOURCE_SCENE_DEPTH = GlobalKeyword.Create("SOURCE_SCENE_DEPTH");
+        public static readonly int MipCountID = Shader.PropertyToID("mipCount");
         
         
         public static readonly int MaxCountID = Shader.PropertyToID("MaxCount");
@@ -116,6 +116,8 @@ public class MgrHiz
 
         hzbInfo.EnsureResourceReady(renderingData);
         
+        
+        
         int leftMipCount = hzbInfo.m_NumMips;
         
         int sourceMipLevel = 0;
@@ -128,6 +130,7 @@ public class MgrHiz
         
         CommandBuffer cmd = CommandBufferPool.Get(generateDepthMipTag);
 
+        cmd.Blit(Texture2D.blackTexture, hzbInfo.tmpDepth, hzbInfo.genDepthRTMat);
         while (leftMipCount > 0)
         {
             int mipCount;
@@ -156,10 +159,10 @@ public class MgrHiz
             {
                 break;
             }
-            
+
+            cmd.SetComputeIntParam(GenerateMipmapCS, ShaderConstants.MipCountID, mipCount);
             if (leftMipCount == hzbInfo.m_NumMips)  //第一次调用
             {
-                cmd.EnableKeyword(ShaderConstants.SOURCE_SCENE_DEPTH);
                 for (int i = 0; i < mipCount; ++i)
                 {
                     cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip[i], dstTexture,
@@ -169,12 +172,10 @@ public class MgrHiz
                 cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
                     new Vector4(sourceSize.x, sourceSize.y, 2 * dstTexture.width, 2 * dstTexture.height));
 
-                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap,
-                    renderingData.cameraData.renderer.cameraDepthTargetHandle);
+                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, hzbInfo.tmpDepth);
             }
             else
             {
-                cmd.DisableKeyword(ShaderConstants.SOURCE_SCENE_DEPTH);
                 for (int i = 0; i < mipCount; ++i)
                 {
                     cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip[i], dstTexture,
@@ -327,6 +328,8 @@ public class HZBInfo
     public Material genDepthRTMat;   //生成深度图的材质
     public Matrix4x4 VpMatrix;       //存储当前帧的VP矩阵，供下一帧进行重投影
 
+    public RenderTexture tmpDepth;
+
     public Plane[] cameraFrustumPlanes = new Plane[6];
     public Vector4[] cameraFrustumPlanesV4 = new Vector4[6];
 
@@ -379,5 +382,18 @@ public class HZBInfo
         hzbDepthRT.filterMode = FilterMode.Point;
         hzbDepthRT.wrapMode = TextureWrapMode.Clamp;
         hzbDepthRT.Create();
+        
+        if (SystemInfo.SupportsRenderTextureFormat(r16RTF) &&
+            SystemInfo.SupportsRandomWriteOnRenderTextureFormat(r16RTF))
+            tmpDepth = new RenderTexture(width, height, 0, GraphicsFormat.R16_SFloat);
+        else
+            tmpDepth = new RenderTexture(width, height, 0, GraphicsFormat.R32_SFloat);
+
+        tmpDepth.name = "tmpDepth";
+        tmpDepth.useMipMap = false;
+        tmpDepth.enableRandomWrite = true;
+        tmpDepth.filterMode = FilterMode.Point;
+        tmpDepth.wrapMode = TextureWrapMode.Clamp;
+        tmpDepth.Create();
     }
 }
