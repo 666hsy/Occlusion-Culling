@@ -11,13 +11,13 @@ public class HizInit : MonoBehaviour
     }
     
     private OCMesh[] renderers;
-
+    
+    private List<double> cullingRate=new List<double>();
     
     private List<MeshRenderer> staticMeshRenders = new List<MeshRenderer>();
     private List<MeshRenderer> dynamicMeshRenders = new List<MeshRenderer>();
     private List<Vector3> targetPositions=new List<Vector3>();
     
-    private List<double> cullingRate=new List<double>();
         
     private BoundStruct[] staticMeshBounds;
     private BoundStruct[] dynamicMeshBounds;
@@ -183,6 +183,9 @@ public class HizInit : MonoBehaviour
         else
             MgrHiz.Instance.MeshBoundBuffer = new ComputeBuffer(staticMeshRenders.Count, sizeof(float) * 6);
         MgrHiz.Instance.MeshBoundBuffer.SetData(staticMeshBounds, 0, 0, staticMeshBounds.Length);
+
+        MgrHiz.Instance.staticMeshRenders = staticMeshRenders;
+        MgrHiz.Instance.EnableLog = EnableLog;
     }
 
     // 读取剔除结果
@@ -226,16 +229,16 @@ public class HizInit : MonoBehaviour
                 break;
             }
         }
-
+    
         if(!success)
         {
             FailFrameCount++;
             Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
             cullingRate.Add(0);
-            // for (int i = 0; i < staticMeshRenders.Count; i++)
-            //     staticMeshRenders[i].enabled= true;
-            // for(int i=0;i<dynamicMeshRenders.Count;i++)
-            //     dynamicMeshRenders[i].enabled = true;
+            for (int i = 0; i < staticMeshRenders.Count; i++)
+                staticMeshRenders[i].enabled= true;
+            for(int i=0;i<dynamicMeshRenders.Count;i++)
+                dynamicMeshRenders[i].enabled = true;
         }
     }
 
@@ -253,7 +256,6 @@ public class HizInit : MonoBehaviour
     public void SwitchHZB()
     {
         _enableHZB = !_enableHZB;
-        enableHZB = _enableHZB;
     }
 
     public void SwitchDepth()
@@ -267,21 +269,7 @@ public class HizInit : MonoBehaviour
     }
     public void OnDestroy()
     {
-        MgrHiz.Instance.Enable = false;
-        MgrHiz.Instance.MeshBoundBuffer?.Dispose();
-
-        foreach (var hzbInfo in MgrHiz.Instance.hzbInfos)
-        {
-            hzbInfo.CullingResultBuffer?.Dispose();
-        }
-
-        if (MgrHiz.Instance.latencyResults.Count > 0)
-        {
-            double sum = 0;
-            foreach (var latency in MgrHiz.Instance.latencyResults) sum += latency;
-            double avg = sum / MgrHiz.Instance.latencyResults.Count;
-            Log("回读延迟平均值:{0}ms", avg);
-        }
+        MgrHiz.Instance.OnDestroy();
         Log("回读失败帧数:{0}，总帧数:{1}，回读失败率：{2}", FailFrameCount, TotalFrameCount, (double)FailFrameCount / TotalFrameCount);
         Log("剔除率：{0}", cullingRate.Average());
     }

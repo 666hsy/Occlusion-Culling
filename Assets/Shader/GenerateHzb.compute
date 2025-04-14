@@ -3,10 +3,11 @@
 #pragma multi_compile DIM_MIP_LEVEL_COUNT_1 DIM_MIP_LEVEL_COUNT_2 DIM_MIP_LEVEL_COUNT_4
 #pragma multi_compile _ UNITY_REVERSED_Z
 
-// #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #pragma enable_d3d11_debug_symbols
 
-Texture2D<float> inputDepthMap; //2488 *1080
+Texture2D<half> InputDepthMap; //2488 *1080
+SamplerState sampler_InputDepthMap;
+
 uniform float4 inputDepthMapSize; //(2488 ,1080, 4096, 2048)
 float2 DepthRTSize;
 int mipCount;
@@ -36,8 +37,9 @@ void BuildHizMap(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uin
     //step1: 2488 *1080 -> 4096x2048 -> hiz_ping
     float depth = 0;
     
-    uint2 srcXY = floor(id.xy * 1.0 * inputDepthMapSize.xy / inputDepthMapSize.zw); // 2488 *1080 -> 4096x2048  //前小后大：变小
-    depth = inputDepthMap.Load(uint3(srcXY, 0));
+    uint2 srcXY = floor(id.xy * 1.0 * inputDepthMapSize.xy / inputDepthMapSize.zw);  //前小后大：变小
+    depth = InputDepthMap.Load(uint3(srcXY, 0));
+    // depth=InputDepthMap.SampleLevel(sampler_InputDepthMap, srcXY, 0).x;
  
     uint2 pix = uint2(idInGroup.x, idInGroup.y);
     hiz_0[pix.x][pix.y] = depth;//32x16         //存储当前线程在当前线程组中计算得到的深度值

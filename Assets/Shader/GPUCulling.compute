@@ -95,7 +95,7 @@ uint GetHizMip(Bounds boundsUVD){
     float3 minP = boundsUVD.minPosition;
     float3 maxP = boundsUVD.maxPosition;
     float2 size = (maxP.xy - minP.xy) * HizDepthMapSize.xy;
-    uint2 mip2 = log2(max(size.x, size.y));
+    uint2 mip2 = log2(max(size.x, size.y))-1;
     uint mip = clamp(mip2,0,HizDepthMapSize.z - 1);
     return mip;
 }

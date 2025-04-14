@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -11,6 +11,10 @@ using Debug = UnityEngine.Debug;
 public class MgrHiz
 {
     private static MgrHiz instance;
+
+    public List<MeshRenderer> staticMeshRenders;
+    public long TotalFrameCount = 0;
+    public long FailFrameCount = 0;
     
     public HZBInfo[] hzbInfos = new HZBInfo[CommonData.HZBInfoCount];
 
@@ -31,6 +35,7 @@ public class MgrHiz
     int kernalInitialize = -1;
     int kernalOcclusionCulling = -1;
     public bool enableDpth = false;
+    public bool EnableLog = true;
 
     public Stopwatch stopwatch = new Stopwatch();
 
@@ -55,7 +60,7 @@ public class MgrHiz
     {
         public static readonly string[] HizMapMip = { "HIZ_MAP_Mip0", "HIZ_MAP_Mip1", "HIZ_MAP_Mip2", "HIZ_MAP_Mip3" };
         
-        public static readonly int InputDepthMap = Shader.PropertyToID("inputDepthMap");
+        public static readonly int InputDepthMap = Shader.PropertyToID("InputDepthMap");
         public static readonly int InputDepthMapSizeID = Shader.PropertyToID("inputDepthMapSize");
         public static readonly int DestTetSizeID = Shader.PropertyToID("DepthRTSize");
         
@@ -107,7 +112,6 @@ public class MgrHiz
         // scene view下不生成深度图
         if (!Enable || renderingData.cameraData.camera.name == "SceneCamera" || renderingData.cameraData.camera.name == "Preview Camera")
             return;
-        
         var hizIndex = Time.frameCount % CommonData.HZBInfoCount;
         var hzbInfo = hzbInfos[hizIndex];
 
@@ -115,7 +119,6 @@ public class MgrHiz
         hzbInfo.VpMatrix = proj * renderingData.cameraData.camera.worldToCameraMatrix;
 
         hzbInfo.EnsureResourceReady(renderingData);
-        
         
         
         int leftMipCount = hzbInfo.m_NumMips;
@@ -218,7 +221,6 @@ public class MgrHiz
         if (!Enable ||  renderingData.cameraData.camera.name == "SceneCamera" ||
             renderingData.cameraData.camera.name == "Preview Camera")
             return;
-
         var hizIndex = Time.frameCount % CommonData.HZBInfoCount;
         var hzbInfo = hzbInfos[hizIndex];
         hzbInfo.readBackSuccess = false;
@@ -257,17 +259,21 @@ public class MgrHiz
         cmd.SetComputeMatrixParam(GPUCullingCS, ShaderConstants.CameraMatrixVP, lastHzbInfo.VpMatrix);
         cmd.SetComputeTextureParam(GPUCullingCS, 0, ShaderConstants.HizDepthMap, hzbInfo.hzbDepthRT);
         cmd.SetComputeVectorParam(GPUCullingCS, ShaderConstants.HizDepthMapSize, new Vector3(hzbInfo.hzbDepthRT.width, hzbInfo.hzbDepthRT.height, hzbInfo.hzbDepthRT.mipmapCount));
-
         cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(MeshBoundBuffer.count / 64f), 1, 1);
-        
         cmd.RequestAsyncReadback(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
-        
         // 记录发起请求的时间戳（以Stopwatch的Ticks为单位）
         long requestTimestamp = stopwatch.ElapsedTicks;
         pendingRequestTimestamps.Enqueue(requestTimestamp);
+        
         context.ExecuteCommandBuffer(cmd);
         
         CommandBufferPool.Release(cmd);
+        
+       
+        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer).WaitForCompletion();
+        // hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
+        // hzbInfo.readBackSuccess = true;
+        // SyncCullResult(hzbInfo); 
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)
@@ -281,7 +287,18 @@ public class MgrHiz
         }
         GPUCullingCS.SetVectorArray(ShaderConstants.CameraFrustumPlanes, hzbInfo.cameraFrustumPlanesV4);
     }
+    
+    private void SyncCullResult(HZBInfo hZBInfo)
+    {
+        long callbackTimestamp = stopwatch.ElapsedTicks;
+        long latencyTicks = callbackTimestamp - pendingRequestTimestamps.Dequeue();
 
+        // 转换为毫秒（Stopwatch.Frequency单位为Hz，1秒=1e7 ticks）
+        double latencyMs = (latencyTicks * 1000.0) / Stopwatch.Frequency;
+        latencyResults.Add(latencyMs);
+    }
+
+    //异步回读
     private void OnGPUCullingReadBack(AsyncGPUReadbackRequest request,HZBInfo hZBInfo)
     {
         if (request.done && !request.hasError)
@@ -317,6 +334,31 @@ public class MgrHiz
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }
+    }
+
+    public void OnDestroy()
+    {
+        Enable = false;
+        MeshBoundBuffer?.Dispose();
+
+        foreach (var hzbInfo in hzbInfos)
+        {
+            hzbInfo.CullingResultBuffer?.Dispose();
+        }
+
+        if (latencyResults.Count > 0)
+        {
+            double sum = 0;
+            foreach (var latency in latencyResults) sum += latency;
+            double avg = sum / latencyResults.Count;
+            Log("回读延迟平均值:{0}ms", avg);
+        }
+    }
+    
+    private void Log(string format, params object[] args)
+    {
+        if (EnableLog)
+            Debug.LogFormat(format, args);
     }
 }
 
