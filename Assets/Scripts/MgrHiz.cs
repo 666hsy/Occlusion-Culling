@@ -15,16 +15,16 @@ public class MgrHiz
     public List<MeshRenderer> staticMeshRenders;
     public long TotalFrameCount = 0;
     public long FailFrameCount = 0;
-    
+
     public HZBInfo[] hzbInfos = new HZBInfo[CommonData.HZBInfoCount];
 
     private string generateDepthMipTag = "GenerateDepthMip";
     private string hiZCullingTag = "HiZCullingTag";
-    
-    public Shader GenDepthRTShader;    //Hiz的Shader
 
-    public ComputeShader GenerateMipmapCS;     //生成Mip的CS
-    public ComputeShader GPUCullingCS;         //GPU剔除CS
+    public Shader GenDepthRTShader; //Hiz的Shader
+
+    public ComputeShader GenerateMipmapCS; //生成Mip的CS
+    public ComputeShader GPUCullingCS; //GPU剔除CS
 
     public ComputeBuffer MeshBoundBuffer;
 
@@ -53,22 +53,22 @@ public class MgrHiz
         }
         private set { }
     }
-    
+
     private class ShaderConstants
     {
         public static readonly string[] HizMapMip = { "HIZ_MAP_Mip0", "HIZ_MAP_Mip1", "HIZ_MAP_Mip2", "HIZ_MAP_Mip3" };
-        
+
         public static readonly int InputDepthMap = Shader.PropertyToID("InputDepthMap");
         public static readonly int CameraDepthMapID = Shader.PropertyToID("CameraDepthMap");
         public static readonly int InputDepthMapSizeID = Shader.PropertyToID("inputDepthMapSize");
         public static readonly int DestTetSizeID = Shader.PropertyToID("DepthRTSize");
-        
+
         public static readonly GlobalKeyword DIM_MIP_LEVEL_COUNT_1 = GlobalKeyword.Create("DIM_MIP_LEVEL_COUNT_1");
         public static readonly GlobalKeyword DIM_MIP_LEVEL_COUNT_2 = GlobalKeyword.Create("DIM_MIP_LEVEL_COUNT_2");
         public static readonly GlobalKeyword DIM_MIP_LEVEL_COUNT_4 = GlobalKeyword.Create("DIM_MIP_LEVEL_COUNT_4");
         public static readonly int MipCountID = Shader.PropertyToID("mipCount");
-        
-        
+
+
         public static readonly int MaxCountID = Shader.PropertyToID("MaxCount");
         public static readonly int MeshBoundBufferID = Shader.PropertyToID("MeshBoundBuffer");
         public static readonly int CullingResultBufferID = Shader.PropertyToID("CullResult");
@@ -81,9 +81,9 @@ public class MgrHiz
 
     public void InitGenerateDepthMip()
     {
-        if (SystemInfo.usesReversedZBuffer)
+        if (GenerateMipmapCS != null)
         {
-            if (GenerateMipmapCS != null)
+            if (SystemInfo.usesReversedZBuffer)
             {
                 Debug.Log("GenerateMipmap设置UNITY_REVERSED_Z");
                 GenerateMipmapCS.EnableKeyword("UNITY_REVERSED_Z");
@@ -93,11 +93,11 @@ public class MgrHiz
         }
     }
 
-    public void InitHizCulling()
+public void InitHizCulling()
     {
-        if (SystemInfo.usesReversedZBuffer)
+        if (GPUCullingCS != null)
         {
-            if (GPUCullingCS != null)
+            if (SystemInfo.usesReversedZBuffer)
             {
                 Debug.Log("GPUCullingCS设置UNITY_REVERSED_Z");
                 GPUCullingCS.EnableKeyword("UNITY_REVERSED_Z");
@@ -106,7 +106,8 @@ public class MgrHiz
                 GPUCullingCS.DisableKeyword("UNITY_REVERSED_Z");
         }
     }
-    /// <summary>
+
+/// <summary>
     /// 生成深度图的Mip，每帧调用
     /// </summary>
     /// <param name="renderingData"></param>
@@ -266,20 +267,19 @@ public class MgrHiz
         cmd.SetComputeTextureParam(GPUCullingCS, 0, ShaderConstants.HizDepthMap, hzbInfo.hzbDepthRT);
         cmd.SetComputeVectorParam(GPUCullingCS, ShaderConstants.HizDepthMapSize, new Vector3(hzbInfo.hzbDepthRT.width, hzbInfo.hzbDepthRT.height, hzbInfo.hzbDepthRT.mipmapCount));
         cmd.DispatchCompute(GPUCullingCS, 0, Mathf.CeilToInt(MeshBoundBuffer.count / 64f), 1, 1);
-        cmd.RequestAsyncReadback(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
+        // cmd.RequestAsyncReadback(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
         // 记录发起请求的时间戳（以Stopwatch的Ticks为单位）
         long requestTimestamp = stopwatch.ElapsedTicks;
         pendingRequestTimestamps.Enqueue(requestTimestamp);
         
         context.ExecuteCommandBuffer(cmd);
-        
         CommandBufferPool.Release(cmd);
         
        
-        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer).WaitForCompletion();
-        // hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
-        // hzbInfo.readBackSuccess = true;
-        // SyncCullResult(hzbInfo); 
+        AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer).WaitForCompletion();
+        hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
+        hzbInfo.readBackSuccess = true;
+        SyncCullResult(hzbInfo); 
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)
