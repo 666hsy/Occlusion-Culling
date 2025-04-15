@@ -26,8 +26,6 @@ public class MgrHiz
     public ComputeShader GenerateMipmapCS;     //生成Mip的CS
     public ComputeShader GPUCullingCS;         //GPU剔除CS
 
-    private Dictionary<int, RenderTexture> tmpTextures = new Dictionary<int, RenderTexture>();
-
     public ComputeBuffer MeshBoundBuffer;
 
     public bool Enable = false;
@@ -61,6 +59,7 @@ public class MgrHiz
         public static readonly string[] HizMapMip = { "HIZ_MAP_Mip0", "HIZ_MAP_Mip1", "HIZ_MAP_Mip2", "HIZ_MAP_Mip3" };
         
         public static readonly int InputDepthMap = Shader.PropertyToID("InputDepthMap");
+        public static readonly int CameraDepthMapID = Shader.PropertyToID("CameraDepthMap");
         public static readonly int InputDepthMapSizeID = Shader.PropertyToID("inputDepthMapSize");
         public static readonly int DestTetSizeID = Shader.PropertyToID("DepthRTSize");
         
@@ -123,20 +122,6 @@ public class MgrHiz
         hzbInfo.VpMatrix = proj * renderingData.cameraData.camera.worldToCameraMatrix;
 
         hzbInfo.EnsureResourceReady(renderingData);
-        if(tmpTextures.Count==0)
-        {
-            int w = hzbInfo.hzbDepthRT.width / 2, h = hzbInfo.hzbDepthRT.height / 2;
-            while(w>=1 && h>=1)
-            {
-                RenderTextureDescriptor inputDepthMapDesc1 = new RenderTextureDescriptor(w, h, hzbInfo.hzbDepthRT.format, 0, 1);
-                var inputDepthMap1 = RenderTexture.GetTemporary(inputDepthMapDesc1);
-                inputDepthMap1.filterMode = FilterMode.Point;
-                inputDepthMap1.Create();
-                tmpTextures.Add(w, inputDepthMap1);
-                w /= 2;
-                h /= 2;
-            }
-        }
         
         int leftMipCount = hzbInfo.m_NumMips;
         
@@ -150,7 +135,6 @@ public class MgrHiz
         
         CommandBuffer cmd = CommandBufferPool.Get(generateDepthMipTag);
 
-        //cmd.Blit(Texture2D.blackTexture, hzbInfo.tmpDepth, hzbInfo.genDepthRTMat);
         while (leftMipCount > 0)
         {
             int mipCount;
@@ -192,20 +176,22 @@ public class MgrHiz
                 cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
                     new Vector4(sourceSize.x, sourceSize.y, 2 * dstTexture.width, 2 * dstTexture.height));
 
-                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, renderingData.cameraData.renderer.cameraDepthTargetHandle);
+                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.CameraDepthMapID, renderingData.cameraData.renderer.cameraDepthTargetHandle);
             }
             else
             {
                 for (int i = 0; i < mipCount; ++i)
                 {
-                    cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.HizMapMip[i], dstTexture,
+                    cmd.SetComputeTextureParam(GenerateMipmapCS, 1, ShaderConstants.HizMapMip[i], dstTexture,
                         destMipLevel + i);
                 }
                 cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
                     new Vector4(sourceSize.x, sourceSize.y, sourceSize.x, sourceSize.y));
 
-                cmd.CopyTexture(dstTexture, 0, sourceMipLevel, tmpTextures[(int)sourceSize.x], 0, 0);
-                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, tmpTextures[(int)sourceSize.x]);
+                //cmd.CopyTexture(dstTexture, 0, sourceMipLevel, tmpTextures[(int)sourceSize.x], 0, 0);
+                //cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, tmpTextures[(int)sourceSize.x]);
+
+                cmd.SetComputeTextureParam(GenerateMipmapCS, 1, ShaderConstants.InputDepthMap, dstTexture, sourceMipLevel);
             }
 
             Vector2 dstSize = (hzbInfo.ExpandHZBSize / (1 << destMipLevel));
@@ -215,8 +201,11 @@ public class MgrHiz
             groupCountX = Mathf.Max(groupCountX, 1);
             groupCountY = Mathf.Max(groupCountY, 1);
 
-            cmd.DispatchCompute(GenerateMipmapCS, 0, groupCountX, groupCountY, 1);
-            
+            if (leftMipCount == hzbInfo.m_NumMips)
+                cmd.DispatchCompute(GenerateMipmapCS, 0, groupCountX, groupCountY, 1);
+            else
+                cmd.DispatchCompute(GenerateMipmapCS, 1, groupCountX, groupCountY, 1);
+
             destMipLevel += mipCount;   //4
             sourceMipLevel = destMipLevel - 1;
             sourceSize = hzbInfo.ExpandHZBSize / (1 << destMipLevel);
