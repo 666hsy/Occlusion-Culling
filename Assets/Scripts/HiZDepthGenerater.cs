@@ -9,8 +9,7 @@ public class HiZDepthGenerater : ScriptableRendererFeature
         private int m_NumMips = 0;
         public HiZDepthGeneraterPass()
         {
-            isComputePass = true;
-            MgrHiz.Instance.InitGenerateDepthMip();
+            //isComputePass = true;
             base.profilingSampler = new ProfilingSampler(nameof(HiZDepthGeneraterPass));
         }
         

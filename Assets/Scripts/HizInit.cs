@@ -186,6 +186,8 @@ public class HizInit : MonoBehaviour
 
         MgrHiz.Instance.staticMeshRenders = staticMeshRenders;
         MgrHiz.Instance.EnableLog = EnableLog;
+        MgrHiz.Instance.InitGenerateDepthMip();
+        MgrHiz.Instance.InitHizCulling();
     }
 
     // 读取剔除结果
@@ -235,10 +237,10 @@ public class HizInit : MonoBehaviour
             FailFrameCount++;
             Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
             cullingRate.Add(0);
-            for (int i = 0; i < staticMeshRenders.Count; i++)
-                staticMeshRenders[i].enabled= true;
-            for(int i=0;i<dynamicMeshRenders.Count;i++)
-                dynamicMeshRenders[i].enabled = true;
+            //for (int i = 0; i < staticMeshRenders.Count; i++)
+            //    staticMeshRenders[i].enabled= true;
+            //for(int i=0;i<dynamicMeshRenders.Count;i++)
+            //    dynamicMeshRenders[i].enabled = true;
         }
     }
 
@@ -256,6 +258,7 @@ public class HizInit : MonoBehaviour
     public void SwitchHZB()
     {
         _enableHZB = !_enableHZB;
+        enableHZB=_enableHZB;
     }
 
     public void SwitchDepth()

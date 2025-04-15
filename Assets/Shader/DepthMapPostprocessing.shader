@@ -3,6 +3,7 @@ Shader "Custom/URP/DepthMap"
     Properties
     {
         _MainTex ("Depth Texture", 2D) = "white" {}
+        _DepthMip ("DepthMip", Int) = 0
     }
     SubShader
     {
@@ -36,6 +37,8 @@ Shader "Custom/URP/DepthMap"
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
 
+            uniform int _DepthMip;
+
             TEXTURE2D_FLOAT(_CameraDepthTexture);
             SAMPLER(sampler_CameraDepthTexture);
 
@@ -49,8 +52,7 @@ Shader "Custom/URP/DepthMap"
 
             float4 frag (v2f i) : SV_Target
             {
-                return SAMPLE_TEXTURE2D_LOD(_MainTex,sampler_MainTex, i.uv,0);
-                // return _MainTex.Load(uint3(i.uv, 0));
+                return SAMPLE_TEXTURE2D_LOD(_MainTex,sampler_MainTex, i.uv,_DepthMip);
             }
             ENDHLSL
         }

@@ -89,6 +89,8 @@ public class MgrHiz
                 Debug.Log("GenerateMipmap设置UNITY_REVERSED_Z");
                 GenerateMipmapCS.EnableKeyword("UNITY_REVERSED_Z");
             }
+            else
+                GenerateMipmapCS.DisableKeyword("UNITY_REVERSED_Z");
         }
     }
 
@@ -101,6 +103,8 @@ public class MgrHiz
                 Debug.Log("GPUCullingCS设置UNITY_REVERSED_Z");
                 GPUCullingCS.EnableKeyword("UNITY_REVERSED_Z");
             }
+            else
+                GPUCullingCS.DisableKeyword("UNITY_REVERSED_Z");
         }
     }
     /// <summary>
@@ -119,7 +123,20 @@ public class MgrHiz
         hzbInfo.VpMatrix = proj * renderingData.cameraData.camera.worldToCameraMatrix;
 
         hzbInfo.EnsureResourceReady(renderingData);
-        
+        if(tmpTextures.Count==0)
+        {
+            int w = hzbInfo.hzbDepthRT.width / 2, h = hzbInfo.hzbDepthRT.height / 2;
+            while(w>=1 && h>=1)
+            {
+                RenderTextureDescriptor inputDepthMapDesc1 = new RenderTextureDescriptor(w, h, hzbInfo.hzbDepthRT.format, 0, 1);
+                var inputDepthMap1 = RenderTexture.GetTemporary(inputDepthMapDesc1);
+                inputDepthMap1.filterMode = FilterMode.Point;
+                inputDepthMap1.Create();
+                tmpTextures.Add(w, inputDepthMap1);
+                w /= 2;
+                h /= 2;
+            }
+        }
         
         int leftMipCount = hzbInfo.m_NumMips;
         
@@ -133,7 +150,7 @@ public class MgrHiz
         
         CommandBuffer cmd = CommandBufferPool.Get(generateDepthMipTag);
 
-        cmd.Blit(Texture2D.blackTexture, hzbInfo.tmpDepth, hzbInfo.genDepthRTMat);
+        //cmd.Blit(Texture2D.blackTexture, hzbInfo.tmpDepth, hzbInfo.genDepthRTMat);
         while (leftMipCount > 0)
         {
             int mipCount;
@@ -175,7 +192,7 @@ public class MgrHiz
                 cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
                     new Vector4(sourceSize.x, sourceSize.y, 2 * dstTexture.width, 2 * dstTexture.height));
 
-                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, hzbInfo.tmpDepth);
+                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, renderingData.cameraData.renderer.cameraDepthTargetHandle);
             }
             else
             {
@@ -186,9 +203,9 @@ public class MgrHiz
                 }
                 cmd.SetComputeVectorParam(GenerateMipmapCS, ShaderConstants.InputDepthMapSizeID,
                     new Vector4(sourceSize.x, sourceSize.y, sourceSize.x, sourceSize.y));
-                
-                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap,
-                    dstTexture, sourceMipLevel);
+
+                cmd.CopyTexture(dstTexture, 0, sourceMipLevel, tmpTextures[(int)sourceSize.x], 0, 0);
+                cmd.SetComputeTextureParam(GenerateMipmapCS, 0, ShaderConstants.InputDepthMap, tmpTextures[(int)sourceSize.x]);
             }
 
             Vector2 dstSize = (hzbInfo.ExpandHZBSize / (1 << destMipLevel));
@@ -388,8 +405,8 @@ public class HZBInfo
     {
         if (hzbDepthRT == null)
             CreateHzbRT(renderingData.cameraData.camera.pixelWidth, renderingData.cameraData.camera.pixelHeight);
-        if (genDepthRTMat == null)
-            genDepthRTMat = new Material(MgrHiz.Instance.GenDepthRTShader);
+        //if (genDepthRTMat == null)
+        //    genDepthRTMat = new Material(MgrHiz.Instance.GenDepthRTShader);
     }
 
     private void CreateHzbRT(int width, int height)
@@ -437,5 +454,7 @@ public class HZBInfo
         tmpDepth.filterMode = FilterMode.Point;
         tmpDepth.wrapMode = TextureWrapMode.Clamp;
         tmpDepth.Create();
+
+
     }
 }
