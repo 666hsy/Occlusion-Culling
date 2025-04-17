@@ -4,11 +4,6 @@ using UnityEditor.SceneManagement;
 
 public class RandomGeneratorObjTool
 {
-    
-    static Vector2 xRange = new Vector2(-500f, 500);
-    static Vector2 yRange = new Vector2(0f, 40f);
-    static Vector2 zRange = new Vector2(-500f, 500f);
-
     [MenuItem("Tools/生成工具/生成相机移动路点",false,1)]
     public static void GenerateCameraMovePoint()
     {
@@ -18,9 +13,9 @@ public class RandomGeneratorObjTool
         for (int i = 0; i < CommonData.CameraMovePointCount; i++)
         {
             Vector3 pos = new Vector3(
-                Random.Range(xRange.x, xRange.y),
-                Random.Range(yRange.x, yRange.y),
-                Random.Range(zRange.x, zRange.y)
+                Random.Range(CommonData.xRange.x, CommonData.xRange.y),
+                Random.Range(CommonData.yRange.x, CommonData.yRange.y),
+                Random.Range(CommonData.zRange.x, CommonData.zRange.y)
             );
             GameObject point = new GameObject("CameraPoint");
             point.transform.position = pos;
@@ -46,17 +41,14 @@ public class RandomGeneratorObjTool
         if (SphereParent == null)
             SphereParent = new GameObject("SphereParent");
         
-        Vector2 xRange = new Vector2(-500f, 500);
-        Vector2 yRange = new Vector2(0f, 40f);
-        Vector2 zRange = new Vector2(-500f, 500f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
         for (int i = 0; i < CommonData.StaticSphereCount; i++)
         {
             // 随机生成位置
             Vector3 pos = new Vector3(
-                Random.Range(xRange.x, xRange.y),
-                Random.Range(yRange.x, yRange.y),
-                Random.Range(zRange.x, zRange.y)
+                Random.Range(CommonData.xRange.x, CommonData.xRange.y),
+                Random.Range(CommonData.yRange.x, CommonData.yRange.y),
+                Random.Range(CommonData.zRange.x, CommonData.zRange.y)
             );
 
             // 随机生成均匀缩放
@@ -90,18 +82,14 @@ public class RandomGeneratorObjTool
         GameObject CubeParent = GameObject.Find("CubeParent");
         if (CubeParent == null)
             CubeParent = new GameObject("CubeParent");
-        
-        Vector2 xRange = new Vector2(-500f, 500);
-        Vector2 yRange = new Vector2(0f, 30f);
-        Vector2 zRange = new Vector2(-500f, 500f);
         Vector2 scaleRange = new Vector2(0.5f, 3f);
         for (int i = 0; i < CommonData.DynamicCubeCount; i++)
         {
             // 随机生成位置
             Vector3 pos = new Vector3(
-                Random.Range(xRange.x, xRange.y),
-                Random.Range(yRange.x, yRange.y),
-                Random.Range(zRange.x, zRange.y)
+                Random.Range(CommonData.xRange.x, CommonData.xRange.y),
+                Random.Range(CommonData.yRange.x, CommonData.yRange.y),
+                Random.Range(CommonData.zRange.x, CommonData.zRange.y)
             );
             Quaternion rot = Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360));
 
@@ -128,5 +116,4 @@ public class RandomGeneratorObjTool
         GameObject.DestroyImmediate(CubeParent);
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
     }
-
 }

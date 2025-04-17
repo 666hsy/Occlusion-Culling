@@ -246,8 +246,8 @@ public class HizInit : MonoBehaviour
 
     private void Log(string format, params object[] args)
     {
-        if (EnableLog)
-            Debug.LogFormat(format, args);
+        // if (EnableLog)
+        //     Debug.LogFormat(format, args);
     }
     private void Error(string format, params object[] args)
     {
@@ -273,7 +273,7 @@ public class HizInit : MonoBehaviour
     public void OnDestroy()
     {
         MgrHiz.Instance.OnDestroy();
-        Log("回读失败帧数:{0}，总帧数:{1}，回读失败率：{2}", FailFrameCount, TotalFrameCount, (double)FailFrameCount / TotalFrameCount);
-        Log("剔除率：{0}", cullingRate.Average());
+        Error("回读失败帧数:{0}，总帧数:{1}，回读失败率：{2}", FailFrameCount, TotalFrameCount, (double)FailFrameCount / TotalFrameCount);
+        Error("剔除率：{0}", cullingRate.Average());
     }
 }

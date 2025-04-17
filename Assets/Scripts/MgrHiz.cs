@@ -286,11 +286,11 @@ public void InitHizCulling()
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
 
-        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
-        AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer).WaitForCompletion();
-        hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
-        hzbInfo.readBackSuccess = true;
-        SyncCullResult(hzbInfo); 
+        AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
+        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer).WaitForCompletion();
+        // hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
+        // hzbInfo.readBackSuccess = true;
+        // SyncCullResult(hzbInfo); 
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)
