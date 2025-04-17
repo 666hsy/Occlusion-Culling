@@ -25,7 +25,7 @@ public class HiZDepthGenerater : ScriptableRendererFeature
     public override void Create()
     {
         hiZDepthGeneraterPass = new HiZDepthGeneraterPass();
-        hiZDepthGeneraterPass.renderPassEvent = RenderPassEvent.AfterRenderingSkybox - 1;
+        hiZDepthGeneraterPass.renderPassEvent = RenderPassEvent.AfterRenderingSkybox + 1;
     }
 
     // Here you can inject one or multiple render passes in the renderer.
