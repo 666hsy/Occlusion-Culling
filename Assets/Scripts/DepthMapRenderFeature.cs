@@ -21,6 +21,9 @@ public class DepthMapRenderFeature : ScriptableRendererFeature
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+        if (renderingData.cameraData.isSceneViewCamera || renderingData.cameraData.isPreviewCamera ||
+            renderingData.cameraData.camera.name != "Main Camera")
+            return;
         renderer.EnqueuePass(_renderPass);
     }
 }
@@ -40,6 +43,5 @@ public class DepthMapRenderPass : ScriptableRenderPass
     {
         if (_depthMaterial == null) return;
         MgrHiz.Instance.ShowDepth(context, ref renderingData, _depthMaterial);
-
     }
 }

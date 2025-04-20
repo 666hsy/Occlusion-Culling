@@ -1,10 +1,9 @@
-// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel GPUCulling
 #pragma kernel IntializeResultBuffer
 
 #pragma multi_compile_local __ ENABLE_HIZ_CULL
+#pragma multi_compile _ UNITY_REVERSED_Z
 #include "Common.hlsl"
-#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 #pragma enable_d3d11_debug_symbols
 uint MaxCount;
@@ -15,7 +14,7 @@ SamplerState sampler_HizDepthMap;
 
 float3 HizDepthMapSize;
 RWStructuredBuffer<int> CullResult;
-RWStructuredBuffer<BoundStruct> StaticBoundBuffer;
+RWStructuredBuffer<BoundStruct> MeshBoundBuffer;
 
 uniform float4 CameraFrustumPlanes[6];  //视锥体的6个面
 int NumIntMasks;
@@ -96,8 +95,8 @@ uint GetHizMip(Bounds boundsUVD){
     float3 minP = boundsUVD.minPosition;
     float3 maxP = boundsUVD.maxPosition;
     float2 size = (maxP.xy - minP.xy) * HizDepthMapSize.xy;
-    uint2 mip2 = log2(max(size.x, size.y));
-    uint mip = clamp(mip2,1,HizDepthMapSize.z - 1);
+    uint2 mip2 = log2(max(size.x, size.y))-1;
+    uint mip = clamp(mip2,0,HizDepthMapSize.z - 1);
     return mip;
 }
 
@@ -117,7 +116,7 @@ bool HZBCulling(BoundStruct bounds)
     float depth = maxP.z;
     return d1 > depth && d2 > depth && d3 > depth && d4 > depth;
     #else
-    float depth = minP.z;
+    float depth = minP.z;   //离得最近的
     return d1 < depth && d2 < depth && d3 < depth && d4 < depth;
     #endif
     
@@ -131,7 +130,7 @@ bool HZBCulling(BoundStruct bounds)
 void GPUCulling (uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= MaxCount) return;
-    if (FrustumCull(CameraFrustumPlanes, StaticBoundBuffer[id.x]) || HZBCulling(StaticBoundBuffer[id.x]))
+    if (FrustumCull(CameraFrustumPlanes, MeshBoundBuffer[id.x]) || HZBCulling(MeshBoundBuffer[id.x]))
     {
         
     }
