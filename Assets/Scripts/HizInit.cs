@@ -227,16 +227,20 @@ public class HizInit : MonoBehaviour
                 success = true;
                 cullingRate.Add((StaticCount + DynamicCount) /
                                 (float)(staticMeshRenders.Count + dynamicMeshRenders.Count));
-                Log("剔除结果读取成功,剔除静态物体:{0}个，动态物体:{1}个", StaticCount, DynamicCount);
+                // Log("剔除结果读取成功,剔除静态物体:{0}个，动态物体:{1}个", StaticCount, DynamicCount);
                 break;
             }
         }
     
         if(!success)
         {
-            FailFrameCount++;
-            Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
-            cullingRate.Add(0);
+            if (Time.frameCount != 1)
+            {
+                FailFrameCount++;
+                Error("剔除结果读取失败 frameCount:{0}", Time.frameCount);
+                cullingRate.Add(0);
+            }
+            
             //for (int i = 0; i < staticMeshRenders.Count; i++)
             //    staticMeshRenders[i].enabled= true;
             //for(int i=0;i<dynamicMeshRenders.Count;i++)
@@ -246,8 +250,8 @@ public class HizInit : MonoBehaviour
 
     private void Log(string format, params object[] args)
     {
-        // if (EnableLog)
-        //     Debug.LogFormat(format, args);
+        if (EnableLog)
+            Debug.LogFormat(format, args);
     }
     private void Error(string format, params object[] args)
     {

@@ -3,8 +3,8 @@ using UnityEngine;
 
 public class MobileCameraControl : MonoBehaviour
 {
-    public float moveSpeed = 20f; // 摄像机移动速度
-    public float rotateSpeed = 90f; // 摄像机旋转速度
+    public float moveSpeed = 15f; // 摄像机移动速度
+    public float rotateSpeed = 70f; // 摄像机旋转速度
 
     private Vector2 lastTouchPosition;
     

@@ -250,7 +250,7 @@ public void InitHizCulling()
         var camera = renderingData.cameraData.camera;
         CommandBuffer cmd = CommandBufferPool.Get(hiZCullingTag);
         
-        if (kernalOcclusionCulling == -1)
+        if (kernalInitialize == -1)
         {
             kernalInitialize = GPUCullingCS.FindKernel("IntializeResultBuffer");
         }
@@ -286,11 +286,23 @@ public void InitHizCulling()
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
 
-        AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
-        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer).WaitForCompletion();
-        // hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
-        // hzbInfo.readBackSuccess = true;
-        // SyncCullResult(hzbInfo); 
+        //异步
+        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
+        
+        //同步
+        var request= AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer);
+        request.WaitForCompletion();
+        if (request.done && !request.hasError)
+        {
+            hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
+            hzbInfo.readBackSuccess = true;
+            SyncCullResult(hzbInfo); 
+        }
+        else
+        {
+            Debug.LogError("ReadBackFailed");
+            hzbInfo.readBackSuccess = false;
+        }
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)
@@ -396,15 +408,11 @@ public class HZBInfo
     public bool readBackSuccess = false;    //当前帧的剔除结果是否读取成功
     public Vector2Int ExpandHZBSize;    //扩充后的大小，2^n形式的
     
-    public RenderTexture tempInputDepthMap;
-    
 
     public void EnsureResourceReady(RenderingData renderingData)
     {
         if (hzbDepthRT == null)
             CreateHzbRT(renderingData.cameraData.camera.pixelWidth, renderingData.cameraData.camera.pixelHeight);
-        //if (genDepthRTMat == null)
-        //    genDepthRTMat = new Material(MgrHiz.Instance.GenDepthRTShader);
     }
 
     private void CreateHzbRT(int width, int height)
