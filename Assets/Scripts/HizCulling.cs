@@ -7,7 +7,7 @@ public class HizCulling : ScriptableRendererFeature
     {
         public HizCullingPass()
         {
-            // isComputePass = true;
+            isComputePass = true;
             base.profilingSampler = new ProfilingSampler(nameof(HizCullingPass));
         }
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)

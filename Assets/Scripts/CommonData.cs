@@ -3,10 +3,10 @@ using UnityEngine;
 public static class CommonData
 {
     //摄像机路点数量
-    public static int CameraMovePointCount = 30;
+    public static int CameraMovePointCount = 10;
     
     //循环缓冲大小
-    public static int HZBInfoCount = 3;
+    public static int HZBInfoCount = 10;
     
     //静态小球数量
     public static int StaticSphereCount = 10000;

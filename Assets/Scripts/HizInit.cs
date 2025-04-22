@@ -13,6 +13,7 @@ public class HizInit : MonoBehaviour
     private OCMesh[] renderers;
     
     private List<double> cullingRate=new List<double>();
+    private List<int> beforeRate=new List<int>();
     
     private List<MeshRenderer> staticMeshRenders = new List<MeshRenderer>();
     private List<MeshRenderer> dynamicMeshRenders = new List<MeshRenderer>();
@@ -150,9 +151,9 @@ public class HizInit : MonoBehaviour
                 }
             }
 
-            MgrHiz.Instance.MeshBoundBuffer.SetData(dynamicMeshBounds, 0, staticMeshBounds.Length,
-                dynamicMeshBounds.Length);
-            // MgrHiz.Instance.DynamicMeshBuffer.SetData(dynamicMeshBounds);
+            if (MgrHiz.Instance.MeshBoundBuffer.count>0)
+                MgrHiz.Instance.MeshBoundBuffer.SetData(dynamicMeshBounds, 0, staticMeshBounds.Length,
+                    dynamicMeshBounds.Length);
         }
     }
 
@@ -201,6 +202,7 @@ public class HizInit : MonoBehaviour
             var hzbInfo = MgrHiz.Instance.hzbInfos[(frame - j + CommonData.HZBInfoCount) % CommonData.HZBInfoCount];
             if(hzbInfo.readBackSuccess)
             {
+                beforeRate.Add(j);
                 int StaticCount = 0,DynamicCount = 0;
                 for (int i = 0; i < staticMeshRenders.Count; i++)
                 {
@@ -279,5 +281,6 @@ public class HizInit : MonoBehaviour
         MgrHiz.Instance.OnDestroy();
         Error("回读失败帧数:{0}，总帧数:{1}，回读失败率：{2}", FailFrameCount, TotalFrameCount, (double)FailFrameCount / TotalFrameCount);
         Error("剔除率：{0}", cullingRate.Average());
+        Error("平均应用{0}帧前的结果",beforeRate.Average());
     }
 }
