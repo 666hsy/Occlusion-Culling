@@ -1,0 +1,22 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel InitKernel
+#pragma kernel SetKernel
+
+RWStructuredBuffer<int> intArray;
+int count;
+
+[numthreads(64,1,1)]
+void InitKernel (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x>count)
+        return;
+    intArray[id.x]=0;
+}
+
+[numthreads(64,1,1)]
+void SetKernel (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x>count)
+        return;
+    intArray[id.x]=1.1;
+}

@@ -129,7 +129,7 @@ bool HZBCulling(BoundStruct bounds)
 [numthreads(64,1,1)]
 void GPUCulling (uint3 id : SV_DispatchThreadID)
 {
-    if (id.x >= MaxCount) return;
+    if (id.x > MaxCount) return;
     if (FrustumCull(CameraFrustumPlanes, MeshBoundBuffer[id.x]) || HZBCulling(MeshBoundBuffer[id.x]))
     {
         

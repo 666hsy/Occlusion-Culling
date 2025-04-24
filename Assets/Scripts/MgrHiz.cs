@@ -43,7 +43,7 @@ public class MgrHiz
     public Stopwatch stopwatch = new Stopwatch();
 
     // 存储未完成的请求及其时间戳
-    private Queue<long> pendingRequestTimestamps = new Queue<long>();
+    public Queue<long> pendingRequestTimestamps = new Queue<long>();
 
     // 存储延迟结果（毫秒）
     public List<double> latencyResults = new List<double>();
@@ -290,22 +290,23 @@ public void InitHizCulling()
         CommandBufferPool.Release(cmd);
 
         //异步
-        AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
-        
+        // hzbInfo.Request = AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer);
+        // AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer, (req) => OnGPUCullingReadBack(req, hzbInfo));
+
         //同步
-        // var request= AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer);
-        // request.WaitForCompletion();
-        // if (request.done && !request.hasError)
-        // {
-        //     hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
-        //     hzbInfo.readBackSuccess = true;
-        //     SyncCullResult(hzbInfo); 
-        // }
-        // else
-        // {
-        //     Debug.LogError("ReadBackFailed");
-        //     hzbInfo.readBackSuccess = false;
-        // }
+        var request= AsyncGPUReadback.Request(hzbInfo.CullingResultBuffer);
+        request.WaitForCompletion();
+        if (request.done && !request.hasError)
+        {
+            hzbInfo.CullingResultBuffer.GetData(hzbInfo.cullResults);
+            hzbInfo.readBackSuccess = true;
+            SyncCullResult(hzbInfo); 
+        }
+        else
+        {
+            Debug.LogError("ReadBackFailed");
+            hzbInfo.readBackSuccess = false;
+        }
     }
 
     private void UpdateCameraFrustumPlanes(HZBInfo hzbInfo, Camera camera)
@@ -320,7 +321,7 @@ public void InitHizCulling()
         GPUCullingCS.SetVectorArray(ShaderConstants.CameraFrustumPlanes, hzbInfo.cameraFrustumPlanesV4);
     }
     
-        public void EnsureResourceReady(RenderingData renderingData)
+    public void EnsureResourceReady(RenderingData renderingData)
     {
         if (hzbDepthRT == null)
             CreateHzbRT(renderingData.cameraData.camera.pixelWidth, renderingData.cameraData.camera.pixelHeight);
@@ -452,7 +453,7 @@ public class HZBInfo
 
     public Plane[] cameraFrustumPlanes = new Plane[6];
     public Vector4[] cameraFrustumPlanesV4 = new Vector4[6];
-
+    public AsyncGPUReadbackRequest Request;
     public ComputeBuffer CullingResultBuffer;
     public int[] cullResults;    //存储剔除结果 静态+动态，对应ComputeShader中的CullResult
 

@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 public class HizInit : MonoBehaviour
 {
@@ -202,6 +204,15 @@ public class HizInit : MonoBehaviour
             var hzbInfo = MgrHiz.Instance.hzbInfos[(frame - j + CommonData.HZBInfoCount) % CommonData.HZBInfoCount];
             if(hzbInfo.readBackSuccess)
             {
+                ////不采用回调的写法
+                // hzbInfo.Request.GetData<int>().CopyTo(hzbInfo.cullResults);
+                // hzbInfo.readBackSuccess = true;
+                // long callbackTimestamp = MgrHiz.Instance.stopwatch.ElapsedTicks;
+                // long latencyTicks = callbackTimestamp - MgrHiz.Instance.pendingRequestTimestamps.Dequeue();
+                // // 转换为毫秒（Stopwatch.Frequency单位为Hz，1秒=1e7 ticks）
+                // double latencyMs = (latencyTicks * 1000.0) / Stopwatch.Frequency;
+                // MgrHiz.Instance.latencyResults.Add(latencyMs);
+                
                 beforeRate.Add(j);
                 int StaticCount = 0,DynamicCount = 0;
                 for (int i = 0; i < staticMeshRenders.Count; i++)
@@ -243,10 +254,10 @@ public class HizInit : MonoBehaviour
                 cullingRate.Add(0);
             }
             
-            //for (int i = 0; i < staticMeshRenders.Count; i++)
-            //    staticMeshRenders[i].enabled= true;
-            //for(int i=0;i<dynamicMeshRenders.Count;i++)
-            //    dynamicMeshRenders[i].enabled = true;
+            for (int i = 0; i < staticMeshRenders.Count; i++)
+                staticMeshRenders[i].enabled= true;
+            for(int i=0;i<dynamicMeshRenders.Count;i++)
+                dynamicMeshRenders[i].enabled = true;
         }
     }
 
